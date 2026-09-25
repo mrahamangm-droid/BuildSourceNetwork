@@ -278,6 +278,7 @@ model Product {
   unit     Unit           @relation(fields: [unitCode], references: [code])
   images   ProductImage[]
   prices   PriceHistory[]
+  priceBreaks PriceBreak[]
   rfqItems RfqItem[]
   inventory InventoryItem[]
   movements StockMovement[]
@@ -298,6 +299,18 @@ model ProductImage {
   sortOrder Int     @default(0)
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
+  @@index([productId])
+}
+
+model PriceBreak {
+  id        String   @id @default(cuid())
+  productId String
+  minQty    Decimal  @db.Decimal(14, 3)
+  price     Decimal  @db.Decimal(14, 2)
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, minQty])
   @@index([productId])
 }
 

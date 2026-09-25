@@ -21,7 +21,7 @@ export default async function Companies({
   );
   return (
     <div className="space-y-4">
-      <PageHeader title="Companies" description={`${ res.total} matching`} />
+      <PageHeader title="Companies" description={`${res.total} matching`} />
       <form className="flex flex-wrap gap-2">
         <Input name="q" defaultValue={sp.q} placeholder="Search name, city or email" className="w-64" />
         <Select name="type" defaultValue={sp.type ?? ""} className="w-40">

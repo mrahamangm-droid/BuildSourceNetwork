@@ -22,6 +22,7 @@ export async function SiteHeader() {
           { href: "/dashboard/orders", label: "Orders" },
         ]
       : []),
+    { href: "/tools", label: "Free tools" },
     { href: "/pricing", label: "Pricing" },
   ];
   return (

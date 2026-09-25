@@ -24,7 +24,7 @@ export default async function VerificationQueue({
         {(["PENDING", "VERIFIED", "REJECTED"] as const).map((t) => (
           <Link
             key={t}
-            href={`/admin/verification?tab=${ t}`}
+            href={`/admin/verification?tab=${t}`}
             className={status === t ? "font-semibold text-brand-700" : "text-slate-600"}
           >
             {t === "PENDING" ? "Pending" : t === "VERIFIED" ? "Approved" : "Rejected"}

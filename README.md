@@ -13,7 +13,9 @@ Inventory (Step 15): per-warehouse stock with reservations, receipts, issues, st
 
 Delivery (Step 14): suppliers schedule deliveries per order (date, driver, vehicle, address), move them Awaiting driver → Driver assigned → Out for delivery → Delivered with a required recipient name and optional proof photo; the order status follows, and buyers are notified at each step (/dashboard/deliveries).
 
-Not built yet (spec phases 2–4): customers/credit, pricing engine beyond price tiers, projects/BOQ/AI, calculators, blog, subscription billing, multi-branch, RFQ file attachments.
+Customers & credit (Step 16): a seller's own customer book with credit limits and payment terms, invoices (auto-numbered INV-YYYY-NNNN, VAT, due dates), payments (on account or against an invoice), ageing buckets and a running-balance statement (/dashboard/customers). Balances are always derived from invoices and payments; over-limit invoices are blocked unless an owner/admin overrides; voids are owner/admin only and audit-logged.
+
+Not built yet (spec phases 2–4): pricing engine beyond price tiers, projects/BOQ/AI, calculators, blog, subscription billing, multi-branch, RFQ file attachments.
 
 ## Layout
 

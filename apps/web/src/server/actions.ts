@@ -160,6 +160,11 @@ export async function saveOrgProfileAction(_: ActionState, fd: FormData): Promis
       categoryIds: fd.getAll("categoryIds").map(String),
       logoUrl: str(fd, "logoUrl"),
       coverUrl: str(fd, "coverUrl"),
+      supplierKind: str(fd, "supplierKind"),
+      leadTimeDays: str(fd, "leadTimeDays"),
+      minOrderNote: str(fd, "minOrderNote"),
+      capacityNote: str(fd, "capacityNote"),
+      certifications: str(fd, "certifications"),
     });
     revalidatePath("/dashboard/profile");
     return { ok: true, message: "Profile saved." };

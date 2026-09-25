@@ -383,6 +383,7 @@ export async function getPublicProduct(id: string) {
       category: true,
       brand: true,
       images: { orderBy: { sortOrder: "asc" } },
+      priceBreaks: { orderBy: { minQty: "asc" } },
       org: {
         select: {
           id: true,

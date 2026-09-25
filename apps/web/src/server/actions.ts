@@ -18,6 +18,7 @@ import * as inventory from "./services/inventory";
 import * as delivery from "./services/delivery";
 import * as customers from "./services/customers";
 import * as pricing from "./services/pricing";
+import * as projects from "./services/projects";
 import type { DeliveryStatusValue } from "@/lib/delivery-rules";
 import { ORDER_STATUSES, type OrderStatus } from "@bmn/config";
 
@@ -613,6 +614,94 @@ export async function savePriceBreaksAction(_: ActionState, fd: FormData): Promi
     revalidatePath(`/dashboard/products/${productId}/pricing`);
     revalidatePath(`/products/${productId}`);
     return { ok: true, message: n ? `${n} price break${n === 1 ? "" : "s"} saved.` : "Price breaks cleared." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+const projectPayload = (fd: FormData) => ({
+  name: str(fd, "name"),
+  kind: str(fd, "kind"),
+  status: str(fd, "status") || "PLANNING",
+  city: str(fd, "city"),
+  startDate: str(fd, "startDate"),
+  budget: str(fd, "budget"),
+  notes: str(fd, "notes"),
+});
+
+export async function saveProjectAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const id = str(fd, "id");
+  let target = id;
+  try {
+    const ctx = await requireCtx();
+    if (id) await projects.updateProject(ctx, id, projectPayload(fd));
+    else target = (await projects.createProject(ctx, projectPayload(fd))).id;
+  } catch (e) {
+    return fail(e);
+  }
+  revalidatePath("/dashboard/projects");
+  revalidatePath(`/dashboard/projects/${target}`);
+  if (!id) redirect(`/dashboard/projects/${target}`);
+  return { ok: true, message: "Project saved." };
+}
+
+export async function addBoqItemAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const projectId = str(fd, "projectId");
+  try {
+    const ctx = await requireCtx();
+    await projects.addItem(ctx, projectId, {
+      section: str(fd, "section"),
+      description: str(fd, "description"),
+      unit: str(fd, "unit"),
+      quantity: str(fd, "quantity"),
+      wastePercent: str(fd, "wastePercent") || 0,
+      unitRate: str(fd, "unitRate"),
+    });
+  } catch (e) {
+    return fail(e);
+  }
+  revalidatePath(`/dashboard/projects/${projectId}`);
+  return { ok: true, message: "Line added." };
+}
+
+export async function updateBoqItemAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const projectId = str(fd, "projectId");
+  try {
+    const ctx = await requireCtx();
+    await projects.updateItem(ctx, str(fd, "itemId"), {
+      quantity: str(fd, "quantity"),
+      wastePercent: str(fd, "wastePercent") || 0,
+      unitRate: str(fd, "unitRate"),
+    });
+  } catch (e) {
+    return fail(e);
+  }
+  revalidatePath(`/dashboard/projects/${projectId}`);
+  return { ok: true, message: "Saved." };
+}
+
+export async function deleteBoqItemAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const projectId = str(fd, "projectId");
+  try {
+    const ctx = await requireCtx();
+    await projects.deleteItem(ctx, str(fd, "itemId"));
+  } catch (e) {
+    return fail(e);
+  }
+  revalidatePath(`/dashboard/projects/${projectId}`);
+  return { ok: true };
+}
+
+export async function starterBoqAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const projectId = str(fd, "projectId");
+  try {
+    const ctx = await requireCtx();
+    const n = await projects.generateStarter(ctx, projectId, {
+      areaM2: str(fd, "areaM2"),
+      floors: str(fd, "floors") || 1,
+    });
+    revalidatePath(`/dashboard/projects/${projectId}`);
+    return { ok: true, message: `${n} starter lines added. Enter your unit rates to price them.` };
   } catch (e) {
     return fail(e);
   }

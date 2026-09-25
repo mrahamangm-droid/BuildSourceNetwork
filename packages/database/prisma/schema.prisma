@@ -284,6 +284,7 @@ model Product {
   rfqItems RfqItem[]
   inventory InventoryItem[]
   movements StockMovement[]
+  orderItems OrderItem[]
 
   @@unique([orgId, slug])
   @@unique([orgId, sku])
@@ -463,6 +464,13 @@ model Order {
   @@index([supplierOrgId, status])
 }
 
+enum OrderStockState {
+  NONE
+  RESERVED
+  ISSUED
+  RELEASED
+}
+
 model OrderItem {
   id        String  @id @default(cuid())
   orderId   String
@@ -471,10 +479,16 @@ model OrderItem {
   unitCode  String
   unitPrice Decimal @db.Decimal(14, 2)
   lineTotal Decimal @db.Decimal(14, 2)
+  // Supplier-side stock link. The state makes reserve/issue/release idempotent per line.
+  productId        String?
+  stockWarehouseId String?
+  stockState       OrderStockState @default(NONE)
   order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   unit      Unit    @relation(fields: [unitCode], references: [code])
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
 
   @@index([orderId])
+  @@index([productId])
 }
 
 model OrderEvent {

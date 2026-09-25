@@ -5,6 +5,7 @@ import { assertCan, assertVerified, type Ctx } from "../ctx";
 import { AppError } from "../errors";
 import { fieldErrorsFrom } from "./accounts";
 import { audit, notifyOrg } from "./notify";
+import { syncOrderStock } from "./order-stock";
 import {
   checkTransition,
   DELIVERABLE_ORDER_STATUSES,
@@ -188,6 +189,8 @@ export async function advanceDelivery(
     }
   });
 
+  // Sending a delivery out dispatches the order, so reserved goods leave stock (idempotent).
+  if (target === "OUT_FOR_DELIVERY") await syncOrderStock(d.order.id, "DISPATCHED");
   await audit({ orgId: ctx.orgId, actorId: ctx.userId, action: `delivery.${target.toLowerCase()}`, entity: "Delivery", entityId: deliveryId });
   if (target !== "ASSIGNED")
     await notifyOrg({

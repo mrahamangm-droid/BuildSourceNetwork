@@ -148,6 +148,7 @@ model Organization {
   branches     Branch[]
   products     Product[]
   subscription Subscription?
+  verificationRequests VerificationRequest[]
 
   rfqs            Rfq[]              @relation("BuyerRfqs")
   recipients      RfqRecipient[]
@@ -540,6 +541,29 @@ model Subscription {
   createdAt         DateTime         @default(now())
   org               Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
   plan              SubscriptionPlan @relation(fields: [planCode], references: [code])
+}
+
+// A company's application to become a "Verified business". Admin reviews it; approving sets
+// Organization.verificationStatus = VERIFIED. Demo organizations are never verified.
+model VerificationRequest {
+  id               String             @id @default(cuid())
+  orgId            String
+  status           VerificationStatus @default(PENDING)
+  legalName        String
+  licenseNumber    String
+  licenseAuthority String?
+  licenseDocUrl    String?
+  taxNumber        String?
+  notes            String?
+  submittedById    String
+  reviewedById     String?
+  reviewedAt       DateTime?
+  reviewNote       String?
+  createdAt        DateTime           @default(now())
+  org              Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, createdAt])
+  @@index([status, createdAt])
 }
 
 model PlatformSetting {

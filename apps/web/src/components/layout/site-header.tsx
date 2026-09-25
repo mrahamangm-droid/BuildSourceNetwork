@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getCtx } from "@/server/access";
+import { getCtx, getAdminUser } from "@/server/access";
 import { logoutAction } from "@/server/actions";
 import { db } from "@bmn/database";
 import { LinkButton, Button } from "@/components/ui";
@@ -10,6 +10,7 @@ export async function SiteHeader() {
   const unread = ctx
     ? await db.notification.count({ where: { userId: ctx.userId, readAt: null } })
     : 0;
+  const adminUser = await getAdminUser();
   const isBuyer = ctx ? BUYER_TYPES.includes(ctx.orgType) : false;
   const nav = [
     { href: "/marketplace", label: "Marketplace" },
@@ -43,8 +44,24 @@ export async function SiteHeader() {
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-2">
-          {ctx ? (
+          {adminUser && !ctx ? (
             <>
+              <LinkButton href="/admin" variant="outline" size="sm">
+                Admin
+              </LinkButton>
+              <form action={logoutAction}>
+                <Button variant="ghost" size="sm" type="submit">
+                  Sign out
+                </Button>
+              </form>
+            </>
+          ) : ctx ? (
+            <>
+              {adminUser ? (
+                <LinkButton href="/admin" variant="ghost" size="sm">
+                  Admin
+                </LinkButton>
+              ) : null}
               {isBuyer ? (
                 <LinkButton href="/dashboard/rfqs/new" size="sm" className="hidden sm:inline-flex">
                   Request Quotes

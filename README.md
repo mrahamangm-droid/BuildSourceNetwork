@@ -7,7 +7,9 @@ Stack: Next.js 16 (App Router), TypeScript, Tailwind 4, PostgreSQL, Prisma 7, Au
 
 Authentication (sign up, login, logout, email verification, forgot/reset password), roles and organization-scoped access, supplier/store/contractor/buyer onboarding, company profile with logo and cover upload, product catalogue (units, MOQ, wholesale/contractor price, VAT, price history), public marketplace with search and filters, supplier/store public profiles with trust metrics, **RFQ + Get 3 Quotes** with supplier matching, supplier quote response, **side-by-side comparison**, accept → order, order status flow, reviews after completed orders, in-app and email notifications, role dashboards, SEO (metadata, JSON-LD, sitemap, robots, category/city pages), PWA manifest.
 
-Not built yet (spec phases 2–4): inventory, customers/credit, delivery records and driver view, admin panel and company verification, pricing engine beyond price tiers, projects/BOQ/AI, calculators, blog, subscription billing, multi-branch, RFQ file attachments.
+Phase 2 (in progress): **admin panel** (`/admin`: overview, verification queue, companies with suspend/revoke, platform settings) and **company verification** (`/dashboard/verification` → admin approve/reject → Verified badge, audit-logged, notifies the company). Admin accounts need no organization; set `isPlatformAdmin` on a user.
+
+Not built yet (spec phases 2–4): inventory, customers/credit, delivery records and driver view, pricing engine beyond price tiers, projects/BOQ/AI, calculators, blog, subscription billing, multi-branch, RFQ file attachments.
 
 ## Layout
 

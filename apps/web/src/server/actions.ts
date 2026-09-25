@@ -6,13 +6,14 @@ import { revalidatePath } from "next/cache";
 import { AuthError } from "next-auth";
 import { db } from "@bmn/database";
 import { signIn, signOut } from "./auth";
-import { getCtx, requireCtx } from "./access";
+import { getCtx, requireCtx, requireAdmin } from "./access";
 import { AppError } from "./errors";
 import * as accounts from "./services/accounts";
 import * as orgs from "./services/orgs";
 import * as products from "./services/products";
 import * as rfq from "./services/rfq";
 import * as orders from "./services/orders";
+import * as admin from "./services/admin";
 import { ORDER_STATUSES, type OrderStatus } from "@bmn/config";
 
 export type ActionState = {
@@ -348,4 +349,82 @@ export async function markNotificationsReadAction() {
     data: { readAt: new Date() },
   });
   revalidatePath("/dashboard/notifications");
+}
+
+// ───────── verification (company side) ─────────
+
+export async function submitVerificationAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requireCtx();
+    await admin.submitVerification(ctx, {
+      legalName: str(fd, "legalName"),
+      licenseNumber: str(fd, "licenseNumber"),
+      licenseAuthority: str(fd, "licenseAuthority"),
+      taxNumber: str(fd, "taxNumber"),
+      licenseDocUrl: str(fd, "licenseDocUrl"),
+      notes: str(fd, "notes"),
+    });
+    revalidatePath("/dashboard/verification");
+    return { ok: true, message: "Submitted. We will review your documents and notify you." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+// ───────── platform admin ─────────
+
+export async function reviewVerificationAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const a = await requireAdmin();
+    const decision = str(fd, "decision") === "APPROVE" ? "APPROVE" : "REJECT";
+    await admin.reviewVerification(
+      { userId: a.id, isPlatformAdmin: true },
+      str(fd, "requestId"),
+      decision,
+      str(fd, "note"),
+    );
+    revalidatePath("/admin/verification");
+    return { ok: true, message: decision === "APPROVE" ? "Approved." : "Rejected." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function setOrgActiveAction(fd: FormData) {
+  const a = await requireAdmin();
+  await admin.setOrgActive(
+    { userId: a.id, isPlatformAdmin: true },
+    str(fd, "orgId"),
+    str(fd, "active") === "1",
+  );
+  revalidatePath("/admin/organizations");
+}
+
+export async function revokeVerificationAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const a = await requireAdmin();
+    await admin.revokeVerification(
+      { userId: a.id, isPlatformAdmin: true },
+      str(fd, "orgId"),
+      str(fd, "note"),
+    );
+    revalidatePath("/admin/organizations");
+    return { ok: true, message: "Verification revoked." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function saveSettingsAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const a = await requireAdmin();
+    await admin.updateSettings(
+      { userId: a.id, isPlatformAdmin: true },
+      Object.fromEntries([...fd.entries()].map(([k, v]) => [k, String(v)])),
+    );
+    revalidatePath("/admin/settings");
+    return { ok: true, message: "Settings saved." };
+  } catch (e) {
+    return fail(e);
+  }
 }

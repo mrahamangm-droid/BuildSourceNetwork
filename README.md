@@ -9,7 +9,9 @@ Authentication (sign up, login, logout, email verification, forgot/reset passwor
 
 Phase 2 (in progress): **admin panel** (`/admin`: overview, verification queue, companies with suspend/revoke, platform settings) and **company verification** (`/dashboard/verification` → admin approve/reject → Verified badge, audit-logged, notifies the company). Admin accounts need no organization; set `isPlatformAdmin` on a user.
 
-Not built yet (spec phases 2–4): inventory, customers/credit, delivery records and driver view, pricing engine beyond price tiers, projects/BOQ/AI, calculators, blog, subscription billing, multi-branch, RFQ file attachments.
+Inventory (Step 15): per-warehouse stock with reservations, receipts, issues, stock takes, low-stock flags and an append-only movement ledger (/dashboard/inventory); marketplace availability follows stock automatically.
+
+Not built yet (spec phases 2–4): customers/credit, delivery records and driver view, pricing engine beyond price tiers, projects/BOQ/AI, calculators, blog, subscription billing, multi-branch, RFQ file attachments.
 
 ## Layout
 

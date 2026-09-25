@@ -27,6 +27,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       : []),
     { href: "/dashboard/rfqs", label: isSupplier ? "RFQ inbox" : "RFQs" },
     { href: "/dashboard/orders", label: "Orders" },
+    { href: "/dashboard/deliveries", label: "Deliveries" },
     { href: "/dashboard/notifications", label: "Notifications" },
     { href: "/dashboard/profile", label: "Company profile" },
     { href: "/dashboard/verification", label: "Verification" },

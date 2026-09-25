@@ -11,7 +11,9 @@ Phase 2 (in progress): **admin panel** (`/admin`: overview, verification queue, 
 
 Inventory (Step 15): per-warehouse stock with reservations, receipts, issues, stock takes, low-stock flags and an append-only movement ledger (/dashboard/inventory); marketplace availability follows stock automatically.
 
-Not built yet (spec phases 2–4): customers/credit, delivery records and driver view, pricing engine beyond price tiers, projects/BOQ/AI, calculators, blog, subscription billing, multi-branch, RFQ file attachments.
+Delivery (Step 14): suppliers schedule deliveries per order (date, driver, vehicle, address), move them Awaiting driver → Driver assigned → Out for delivery → Delivered with a required recipient name and optional proof photo; the order status follows, and buyers are notified at each step (/dashboard/deliveries).
+
+Not built yet (spec phases 2–4): customers/credit, pricing engine beyond price tiers, projects/BOQ/AI, calculators, blog, subscription billing, multi-branch, RFQ file attachments.
 
 ## Layout
 

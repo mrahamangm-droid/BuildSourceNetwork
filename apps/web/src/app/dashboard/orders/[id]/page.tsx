@@ -6,6 +6,7 @@ import { advanceOrderAction } from "@/server/actions";
 import { allowedTransitions, getOrder } from "@/server/services/orders";
 import { Alert, Badge, Button, Card, PageHeader } from "@/components/ui";
 import { ReviewForm } from "@/components/dashboard/review-form";
+import { DeliveryPanel } from "@/components/dashboard/delivery-panel";
 import { formatDate, formatMoney, formatQty } from "@/lib/utils";
 import { ORDER_STATUS_LABEL, ORDER_STATUSES, roleHas } from "@bmn/config";
 
@@ -190,6 +191,30 @@ export default async function OrderPage({
             </ul>
           </Card>
         </div>
+      </div>
+
+      <div className="mt-6">
+        <DeliveryPanel
+          orderId={order.id}
+          orderStatus={order.status}
+          defaultAddress={[order.deliveryCity, order.deliveryAddress].filter(Boolean).join(", ")}
+          canManage={!isBuyer && roleHas(ctx.role, "order.manage")}
+          deliveries={order.deliveries.map((d) => ({
+            id: d.id,
+            status: d.status,
+            scheduledAt: d.scheduledAt?.toISOString() ?? null,
+            dispatchedAt: d.dispatchedAt?.toISOString() ?? null,
+            deliveredAt: d.deliveredAt?.toISOString() ?? null,
+            driverName: d.driverName,
+            driverPhone: d.driverPhone,
+            vehicle: d.vehicle,
+            address: d.address,
+            recipientName: d.recipientName,
+            proofUrl: d.proofUrl,
+            proofNote: d.proofNote,
+            notes: d.notes,
+          }))}
+        />
       </div>
 
       {canReview ? (

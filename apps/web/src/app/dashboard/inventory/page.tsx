@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireCtx } from "@/server/access";
 import { listMovements, listStock } from "@/server/services/inventory";
+import { listWarehouseOptions } from "@/server/services/branches";
 import { Badge, EmptyState, PageHeader } from "@/components/ui";
 import { StockForm } from "@/components/dashboard/stock-form";
 import { formatDate, formatQty } from "@/lib/utils";
@@ -13,7 +14,7 @@ export const metadata: Metadata = { title: "Inventory" };
 export default async function InventoryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; low?: string }>;
+  searchParams: Promise<{ q?: string; low?: string; warehouse?: string }>;
 }) {
   const ctx = await requireCtx();
   if (!["SUPPLIER", "STORE"].includes(ctx.orgType) || !roleHas(ctx.role, "inventory.manage"))
@@ -21,9 +22,12 @@ export default async function InventoryPage({
   const sp = await searchParams;
   const q = sp.q?.trim().slice(0, 80) || undefined;
   const lowOnly = sp.low === "1";
+  const warehouses = await listWarehouseOptions(ctx);
+  // Only accept a warehouse id that belongs to this org; anything else means "all locations".
+  const warehouseId = warehouses.find((w) => w.id === sp.warehouse)?.id;
   const [rows, all, moves] = await Promise.all([
-    listStock(ctx, { q, lowOnly }),
-    lowOnly || q ? listStock(ctx) : null,
+    listStock(ctx, { q, lowOnly, warehouseId }),
+    lowOnly || q ? listStock(ctx, { warehouseId }) : null,
     listMovements(ctx, { take: 20 }),
   ]);
   const catalogue = all ?? rows;
@@ -48,7 +52,22 @@ export default async function InventoryPage({
         >
           Low stock{lowCount ? ` (${lowCount})` : ""}
         </Link>
-        <form className="ml-auto">
+        <form className="ml-auto flex gap-2">
+          {warehouses.length > 1 ? (
+            <select
+              name="warehouse"
+              defaultValue={warehouseId ?? ""}
+              className="h-9 rounded-lg border border-line px-2 text-sm"
+              aria-label="Warehouse"
+            >
+              <option value="">All locations</option>
+              {warehouses.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.label}
+                </option>
+              ))}
+            </select>
+          ) : null}
           <input
             name="q"
             defaultValue={q}
@@ -106,7 +125,11 @@ export default async function InventoryPage({
         />
       )}
 
-      <StockForm products={catalogue.map((r) => ({ id: r.productId, name: r.name, unit: r.unit }))} />
+      <StockForm
+        products={catalogue.map((r) => ({ id: r.productId, name: r.name, unit: r.unit }))}
+        warehouses={warehouses}
+        defaultWarehouseId={warehouseId}
+      />
 
       <section>
         <h2 className="mb-2 font-semibold">Recent movements</h2>

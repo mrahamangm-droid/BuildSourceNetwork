@@ -161,6 +161,7 @@ model Organization {
   customers            Customer[]
   invoices             Invoice[]
   projects Project[]
+  planRequests PlanRequest[]
   boqItems BoqItem[]
   customerPayments     CustomerPayment[]
   stockMovements       StockMovement[]
@@ -581,6 +582,7 @@ model SubscriptionPlan {
   features          String[]
   isActive          Boolean        @default(true)
   subscriptions     Subscription[]
+  requests          PlanRequest[]
 }
 
 model Subscription {
@@ -808,4 +810,30 @@ model BoqItem {
 
   @@index([projectId, sortOrder])
   @@index([orgId])
+}
+
+enum PlanRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// A company asks for a paid plan; a platform admin activates it manually until online billing exists.
+model PlanRequest {
+  id            String            @id @default(cuid())
+  orgId         String
+  requestedById String
+  planCode      String
+  note          String?
+  status        PlanRequestStatus @default(PENDING)
+  reviewNote    String?
+  reviewedById  String?
+  reviewedAt    DateTime?
+  createdAt     DateTime          @default(now())
+
+  org  Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  plan SubscriptionPlan @relation(fields: [planCode], references: [code])
+
+  @@index([status, createdAt])
+  @@index([orgId, createdAt])
 }

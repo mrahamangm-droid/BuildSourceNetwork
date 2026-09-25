@@ -31,13 +31,14 @@ export const PERMISSIONS = [
   "rfq.respond",
   "order.manage",
   "order.view",
+  "inventory.manage",
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
 export const ROLE_PERMISSIONS: Record<MemberRole, Permission[]> = {
   OWNER: [...PERMISSIONS],
   ADMIN: [...PERMISSIONS],
-  MANAGER: ["product.manage", "rfq.create", "rfq.respond", "order.manage", "order.view"],
+  MANAGER: ["product.manage", "inventory.manage", "rfq.create", "rfq.respond", "order.manage", "order.view"],
   STAFF: ["rfq.create", "order.view"],
 };
 

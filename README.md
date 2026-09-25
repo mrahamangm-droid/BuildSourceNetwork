@@ -19,6 +19,8 @@ Volume pricing (Step 12): sellers can add up to six quantity price breaks per pr
 
 Stock on orders: a supplier links order lines to their own products (same unit) to reserve stock once an order is confirmed. Dispatching (or sending a delivery out) issues the reserved goods, cancelling releases them, and both are idempotent per line, recorded in the stock ledger against the order number. Automatic sync never blocks an order: failures are audited and the supplier can retry from the order page.
 
+Plans & usage (Step 21): /dashboard/billing shows the current plan, usage against product and RFQ limits, and lets an owner or admin request a paid plan. Online payment is NOT connected: a platform admin confirms payment outside the platform, records the reference and activates the plan for 30 days at /admin/plans. Limits are enforced from one place; when a paid period lapses (7-day grace) Free limits apply, and nothing is deleted on a downgrade.
+
 Projects & BOQ (Step 17): contractors and buyers keep projects with a priced bill of quantities (waste allowance, per-section subtotals, budget variance, CSV export that neutralises spreadsheet formulas) at /dashboard/projects. The starter bill is a transparent rule-based estimate from floor area and project type, not machine learning and not a drawing take-off; its assumptions are listed in the UI. Ticked BOQ lines can be sent as a quote request: they pre-fill the RFQ form with order quantities (waste included), a guessed category and unit where the match is confident, and blanks where it is not; the buyer edits everything before sending.
 
 Not built yet (spec phases 2–4): pricing engine beyond price tiers, projects/BOQ/AI, calculators, blog, subscription billing, multi-branch, RFQ file attachments.

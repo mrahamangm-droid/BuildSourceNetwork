@@ -1,5 +1,3 @@
-line1
-  line2
 import { beforeAll, describe, expect, it } from "vitest";
 import { makeAccount, resetDb } from "./helpers";
 

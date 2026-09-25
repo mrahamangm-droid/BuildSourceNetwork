@@ -322,7 +322,7 @@ export async function updateSettings(actor: AdminActor, raw: Record<string, unkn
     const def = SETTING_DEFS[key];
     const v = Number(raw[key]);
     if (!Number.isInteger(v) || v < def.min || v > def.max)
-      errors[key] = `Enter a whole number from ${ def.min} to ${ def.max}`;
+      errors[key] = `Enter a whole number from ${def.min} to ${def.max}`;
     else updates.push([key, String(v)]);
   }
   if (Object.keys(errors).length)

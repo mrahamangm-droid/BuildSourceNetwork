@@ -19,6 +19,7 @@ import * as delivery from "./services/delivery";
 import * as customers from "./services/customers";
 import * as pricing from "./services/pricing";
 import * as projects from "./services/projects";
+import * as orderStock from "./services/order-stock";
 import type { DeliveryStatusValue } from "@/lib/delivery-rules";
 import { ORDER_STATUSES, type OrderStatus } from "@bmn/config";
 
@@ -702,6 +703,29 @@ export async function starterBoqAction(_: ActionState, fd: FormData): Promise<Ac
     });
     revalidatePath(`/dashboard/projects/${projectId}`);
     return { ok: true, message: `${n} starter lines added. Enter your unit rates to price them.` };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function orderStockAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const orderId = str(fd, "orderId");
+  const intent = str(fd, "intent");
+  try {
+    const ctx = await requireCtx();
+    let n: number;
+    if (intent === "reserve") {
+      const mapping: Record<string, string> = {};
+      for (const [k, v] of fd.entries())
+        if (k.startsWith("product_") && typeof v === "string" && v) mapping[k.slice(8)] = v;
+      n = await orderStock.reserveOrderStock(ctx, orderId, mapping);
+    } else if (intent === "issue") n = await orderStock.issueOrderStock(ctx, orderId);
+    else if (intent === "release") n = await orderStock.releaseOrderStock(ctx, orderId);
+    else return { error: "Unknown stock action." };
+    revalidatePath(`/dashboard/orders/${orderId}`);
+    revalidatePath("/dashboard/inventory");
+    const verb = intent === "reserve" ? "reserved" : intent === "issue" ? "issued" : "released";
+    return { ok: true, message: `${n} line${n === 1 ? "" : "s"} ${verb}.` };
   } catch (e) {
     return fail(e);
   }

@@ -40,6 +40,14 @@ enum StockStatus {
   ON_REQUEST
 }
 
+enum StockMovementType {
+  RECEIPT
+  ISSUE
+  ADJUSTMENT
+  RESERVE
+  RELEASE
+}
+
 enum RfqStatus {
   OPEN
   ACCEPTED
@@ -149,6 +157,8 @@ model Organization {
   products     Product[]
   subscription Subscription?
   verificationRequests VerificationRequest[]
+  inventoryItems       InventoryItem[]
+  stockMovements       StockMovement[]
 
   rfqs            Rfq[]              @relation("BuyerRfqs")
   recipients      RfqRecipient[]
@@ -197,6 +207,8 @@ model Warehouse {
   name      String
   createdAt DateTime @default(now())
   branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  items     InventoryItem[]
+  movements StockMovement[]
 
   @@index([branchId])
 }
@@ -264,6 +276,8 @@ model Product {
   images   ProductImage[]
   prices   PriceHistory[]
   rfqItems RfqItem[]
+  inventory InventoryItem[]
+  movements StockMovement[]
 
   @@unique([orgId, slug])
   @@unique([orgId, sku])
@@ -586,4 +600,49 @@ model AuditLog {
 
   @@index([orgId, createdAt])
   @@index([actorId])
+}
+
+// Stock is tracked per warehouse and product. onHand and reserved are only ever changed through
+// services/inventory.ts, which writes a StockMovement row in the same transaction.
+// available = onHand - reserved; a check constraint in the migration keeps 0 <= reserved <= onHand.
+model InventoryItem {
+  id           String    @id @default(cuid())
+  orgId        String
+  warehouseId  String
+  productId    String
+  onHand       Decimal   @default(0) @db.Decimal(14, 3)
+  reserved     Decimal   @default(0) @db.Decimal(14, 3)
+  reorderLevel Decimal   @default(0) @db.Decimal(14, 3)
+  updatedAt    DateTime  @updatedAt
+
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  warehouse Warehouse    @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  product   Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([warehouseId, productId])
+  @@index([orgId, productId])
+}
+
+// Append-only ledger. quantity fields are signed deltas; onHandAfter is the balance after the change.
+model StockMovement {
+  id           String            @id @default(cuid())
+  orgId        String
+  warehouseId  String
+  productId    String
+  type         StockMovementType
+  onHandDelta  Decimal           @default(0) @db.Decimal(14, 3)
+  reservedDelta Decimal          @default(0) @db.Decimal(14, 3)
+  onHandAfter  Decimal           @db.Decimal(14, 3)
+  unitCost     Decimal?          @db.Decimal(14, 2)
+  reference    String?
+  note         String?
+  actorId      String?
+  createdAt    DateTime          @default(now())
+
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  warehouse Warehouse    @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  product   Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, createdAt])
+  @@index([productId, createdAt])
 }

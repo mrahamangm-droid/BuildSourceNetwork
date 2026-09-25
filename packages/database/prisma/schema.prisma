@@ -476,14 +476,21 @@ model Delivery {
   orderId       String
   status        DeliveryStatus @default(PENDING)
   driverName    String?
+  driverPhone   String?
   vehicle       String?
+  address       String?
   scheduledAt   DateTime?
+  dispatchedAt  DateTime?
   deliveredAt   DateTime?
+  recipientName String?
+  proofUrl      String?
+  proofNote     String?
   notes         String?
   createdAt     DateTime       @default(now())
   order         Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
+  @@index([status, scheduledAt])
 }
 
 // Reviews are only possible on a COMPLETED order and only by the buyer org; one per order.

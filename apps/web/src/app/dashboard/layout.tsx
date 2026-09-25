@@ -20,7 +20,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const items = [
     { href: "/dashboard", label: "Overview" },
     ...(isSupplier || ctx.orgType === "STORE"
-      ? [{ href: "/dashboard/products", label: "Products" }]
+      ? [
+          { href: "/dashboard/products", label: "Products" },
+          { href: "/dashboard/inventory", label: "Inventory" },
+        ]
       : []),
     { href: "/dashboard/rfqs", label: isSupplier ? "RFQ inbox" : "RFQs" },
     { href: "/dashboard/orders", label: "Orders" },

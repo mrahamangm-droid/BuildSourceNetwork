@@ -1,0 +1,7 @@
+{
+  "framework": "nextjs",
+  "installCommand": "npm install",
+  "buildCommand": "npm run db:generate && npm run build -w @bmn/web",
+  "outputDirectory": "apps/web/.next",
+  "crons": [{ "path": "/api/cron/expire", "schedule": "0 3 * * *" }]
+}

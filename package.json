@@ -1,0 +1,30 @@
+{
+  "name": "building-materials-network",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20.9"
+  },
+  "scripts": {
+    "dev": "npm run dev -w @bmn/web",
+    "build": "npm run db:generate && npm run build -w @bmn/web",
+    "start": "npm run start -w @bmn/web",
+    "lint": "npm run lint -w @bmn/web",
+    "typecheck": "npm run typecheck -w @bmn/config && npm run typecheck -w @bmn/database && npm run typecheck -w @bmn/web",
+    "test": "npm run test -w @bmn/web",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:generate": "npm run generate -w @bmn/database",
+    "db:migrate": "npm run migrate:dev -w @bmn/database",
+    "db:deploy": "npm run migrate:deploy -w @bmn/database",
+    "db:seed": "npm run seed -w @bmn/database",
+    "db:reset": "npm run reset -w @bmn/database"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2"
+  }
+}

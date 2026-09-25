@@ -1,0 +1,4 @@
+node_modules
+.next
+packages/database/src/generated
+package-lock.json

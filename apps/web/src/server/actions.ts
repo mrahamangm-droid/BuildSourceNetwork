@@ -14,6 +14,7 @@ import * as products from "./services/products";
 import * as rfq from "./services/rfq";
 import * as orders from "./services/orders";
 import * as admin from "./services/admin";
+import * as inventory from "./services/inventory";
 import { ORDER_STATUSES, type OrderStatus } from "@bmn/config";
 
 export type ActionState = {
@@ -424,6 +425,41 @@ export async function saveSettingsAction(_: ActionState, fd: FormData): Promise<
     );
     revalidatePath("/admin/settings");
     return { ok: true, message: "Settings saved." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+// ───────── inventory ─────────
+
+const MOVES = ["RECEIPT", "ISSUE", "ADJUSTMENT", "RESERVE", "RELEASE"] as const;
+
+export async function stockMovementAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const kind = str(fd, "kind");
+  if (!(MOVES as readonly string[]).includes(kind)) return { error: "Choose what happened to the stock." };
+  try {
+    const ctx = await requireCtx();
+    const r = await inventory.move(ctx, kind as (typeof MOVES)[number], {
+      productId: str(fd, "productId"),
+      warehouseId: str(fd, "warehouseId"),
+      quantity: str(fd, "quantity"),
+      unitCost: str(fd, "unitCost"),
+      reference: str(fd, "reference"),
+      note: str(fd, "note"),
+    });
+    revalidatePath("/dashboard/inventory");
+    return { ok: true, message: `${r.productName}: ${r.onHand} on hand.` };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function reorderLevelAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requireCtx();
+    await inventory.setReorderLevel(ctx, str(fd, "productId"), undefined, Number(str(fd, "reorderLevel")));
+    revalidatePath("/dashboard/inventory");
+    return { ok: true, message: "Reorder level saved." };
   } catch (e) {
     return fail(e);
   }

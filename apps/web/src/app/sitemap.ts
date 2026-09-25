@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { db } from "@bmn/database";
 import { slugify } from "@bmn/config";
 import { appUrl } from "@/lib/utils";
+import { CALCULATORS } from "@/lib/calculators";
 
 export const dynamic = "force-dynamic";
 
@@ -31,9 +32,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ]);
   const now = new Date();
   return [
-    ...["", "/marketplace", "/suppliers", "/stores", "/pricing", "/building-materials"].map(
+    ...["", "/marketplace", "/suppliers", "/stores", "/pricing", "/building-materials", "/tools"].map(
       (p) => ({ url: `${base}${p}`, lastModified: now }),
     ),
+    ...CALCULATORS.map((c) => ({ url: `${base}/tools/${c.slug}`, lastModified: now })),
     ...cats.map((c) => ({ url: `${base}/building-materials/${c.slug}`, lastModified: now })),
     ...catCity.map((x) => ({
       url: `${base}/building-materials/${x.category.slug}/${slugify(x.city!)}`,

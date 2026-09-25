@@ -160,6 +160,8 @@ model Organization {
   inventoryItems       InventoryItem[]
   customers            Customer[]
   invoices             Invoice[]
+  projects Project[]
+  boqItems BoqItem[]
   customerPayments     CustomerPayment[]
   stockMovements       StockMovement[]
 
@@ -745,4 +747,51 @@ model CustomerPayment {
 
   @@index([orgId, customerId, receivedAt])
   @@index([invoiceId])
+}
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+}
+
+model Project {
+  id        String        @id @default(cuid())
+  orgId     String
+  name      String
+  kind      String        @default("OTHER")
+  status    ProjectStatus @default(PLANNING)
+  city      String?
+  startDate DateTime?
+  budget    Decimal?      @db.Decimal(14, 2)
+  notes     String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  items BoqItem[]
+
+  @@index([orgId, status])
+}
+
+model BoqItem {
+  id           String   @id @default(cuid())
+  projectId    String
+  orgId        String
+  section      String
+  description  String
+  unit         String
+  quantity     Decimal  @db.Decimal(14, 3)
+  wastePercent Decimal  @default(0) @db.Decimal(5, 2)
+  unitRate     Decimal? @db.Decimal(14, 2)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  project Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  org     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, sortOrder])
+  @@index([orgId])
 }

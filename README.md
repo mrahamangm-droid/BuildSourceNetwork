@@ -15,6 +15,8 @@ Delivery (Step 14): suppliers schedule deliveries per order (date, driver, vehic
 
 Customers & credit (Step 16): a seller's own customer book with credit limits and payment terms, invoices (auto-numbered INV-YYYY-NNNN, VAT, due dates), payments (on account or against an invoice), ageing buckets and a running-balance statement (/dashboard/customers). Balances are always derived from invoices and payments; over-limit invoices are blocked unless an owner/admin overrides; voids are owner/admin only and audit-logged.
 
+Volume pricing (Step 12): sellers can add up to six quantity price breaks per product (/dashboard/products/[id]/pricing). Breaks must sit above the minimum order, be strictly cheaper than the base price and than every smaller tier, and are enforced in code and by a DB CHECK; the public product page shows the tier table with savings, and the resolver never charges more than the base price if a break goes stale.
+
 Not built yet (spec phases 2–4): pricing engine beyond price tiers, projects/BOQ/AI, calculators, blog, subscription billing, multi-branch, RFQ file attachments.
 
 ## Layout

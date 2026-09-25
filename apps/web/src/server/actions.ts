@@ -17,6 +17,7 @@ import * as admin from "./services/admin";
 import * as inventory from "./services/inventory";
 import * as delivery from "./services/delivery";
 import * as customers from "./services/customers";
+import * as pricing from "./services/pricing";
 import type { DeliveryStatusValue } from "@/lib/delivery-rules";
 import { ORDER_STATUSES, type OrderStatus } from "@bmn/config";
 
@@ -598,4 +599,21 @@ export async function voidPaymentAction(fd: FormData) {
   const ctx = await requireCtx();
   await customers.voidPayment(ctx, str(fd, "paymentId"));
   revalidatePath(`/dashboard/customers/${str(fd, "customerId")}`);
+}
+
+export async function savePriceBreaksAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const productId = str(fd, "productId");
+  const rows = Array.from({ length: 6 }, (_, i) => ({
+    minQty: str(fd, `minQty_${i}`),
+    price: str(fd, `price_${i}`),
+  }));
+  try {
+    const ctx = await requireCtx();
+    const n = await pricing.saveBreaks(ctx, productId, rows);
+    revalidatePath(`/dashboard/products/${productId}/pricing`);
+    revalidatePath(`/products/${productId}`);
+    return { ok: true, message: n ? `${n} price break${n === 1 ? "" : "s"} saved.` : "Price breaks cleared." };
+  } catch (e) {
+    return fail(e);
+  }
 }

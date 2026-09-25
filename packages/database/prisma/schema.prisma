@@ -12,6 +12,12 @@ datasource db {
   provider = "postgresql"
 }
 
+enum SupplierKind {
+  MANUFACTURER
+  DISTRIBUTOR
+  WHOLESALER
+}
+
 enum OrgType {
   SUPPLIER
   STORE
@@ -145,6 +151,11 @@ model Organization {
   currency           String             @default("AED")
   businessHours      String?
   deliveryAreas      String[]
+  supplierKind       SupplierKind?
+  leadTimeDays       Int?
+  minOrderNote       String?
+  capacityNote       String?
+  certifications     String[]
   verificationStatus VerificationStatus @default(UNVERIFIED)
   isActive           Boolean            @default(true)
   isDemo             Boolean            @default(false)

@@ -15,6 +15,8 @@ import * as rfq from "./services/rfq";
 import * as orders from "./services/orders";
 import * as admin from "./services/admin";
 import * as inventory from "./services/inventory";
+import * as delivery from "./services/delivery";
+import type { DeliveryStatusValue } from "@/lib/delivery-rules";
 import { ORDER_STATUSES, type OrderStatus } from "@bmn/config";
 
 export type ActionState = {
@@ -463,4 +465,50 @@ export async function reorderLevelAction(_: ActionState, fd: FormData): Promise<
   } catch (e) {
     return fail(e);
   }
+}
+
+// ───────── delivery ─────────
+
+const deliveryPayload = (fd: FormData) => ({
+  scheduledAt: str(fd, "scheduledAt"),
+  driverName: str(fd, "driverName"),
+  driverPhone: str(fd, "driverPhone"),
+  vehicle: str(fd, "vehicle"),
+  address: str(fd, "address"),
+  notes: str(fd, "notes"),
+});
+
+export async function saveDeliveryAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const orderId = str(fd, "orderId");
+  const id = str(fd, "deliveryId");
+  try {
+    const ctx = await requireCtx();
+    if (id) await delivery.updateDelivery(ctx, id, deliveryPayload(fd));
+    else await delivery.scheduleDelivery(ctx, orderId, deliveryPayload(fd));
+  } catch (e) {
+    return fail(e);
+  }
+  revalidatePath(`/dashboard/orders/${orderId}`);
+  revalidatePath("/dashboard/deliveries");
+  return { ok: true, message: id ? "Delivery updated." : "Delivery scheduled." };
+}
+
+const DELIVERY_TARGETS = ["ASSIGNED", "OUT_FOR_DELIVERY", "DELIVERED"];
+
+export async function advanceDeliveryAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const target = str(fd, "target");
+  if (!DELIVERY_TARGETS.includes(target)) return { error: "Unknown delivery step." };
+  try {
+    const ctx = await requireCtx();
+    await delivery.advanceDelivery(ctx, str(fd, "deliveryId"), target as DeliveryStatusValue, {
+      recipientName: str(fd, "recipientName"),
+      proofUrl: str(fd, "proofUrl"),
+      proofNote: str(fd, "proofNote"),
+    });
+  } catch (e) {
+    return fail(e);
+  }
+  revalidatePath(`/dashboard/orders/${str(fd, "orderId")}`);
+  revalidatePath("/dashboard/deliveries");
+  return { ok: true, message: "Delivery updated." };
 }

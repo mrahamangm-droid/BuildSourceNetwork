@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireCtx } from "@/server/access";
 import { getProject } from "@/server/services/projects";
-import { Badge, Card, PageHeader } from "@/components/ui";
+import { Badge, Button, Card, PageHeader } from "@/components/ui";
 import { AddItemForm, BoqRow, ProjectForm, StarterForm } from "@/components/dashboard/project-forms";
 import { formatMoney } from "@/lib/utils";
 import {
@@ -66,6 +66,17 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
             </a>
           ) : null}
         </div>
+        {s.sections.length ? (
+          <form id="boq-rfq" action="/dashboard/rfqs/new" method="get" className="mb-3 flex flex-wrap items-center gap-3">
+            <input type="hidden" name="projectId" value={id} />
+            <Button type="submit" variant="outline" size="sm">
+              Request quotes for ticked lines
+            </Button>
+            <span className="text-xs text-muted">
+              Tick material lines (up to 30). Works items such as excavation or formwork are not materials.
+            </span>
+          </form>
+        ) : null}
         {s.sections.length ? (
           <div className="space-y-4">
             {s.sections.map((sec) => (

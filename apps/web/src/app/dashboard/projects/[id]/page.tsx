@@ -61,7 +61,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Bill of quantities</h2>
           {s.itemCount ? (
-            <a className="text-sm text-brand-700 hover:underline" href={`/dashboard/projects/${id}/boq.csv`}>
+            <a className="text-sm text-brand-700 hover:underline" href={`/dashboard/projects/${id}/export`}>
               Download CSV
             </a>
           ) : null}

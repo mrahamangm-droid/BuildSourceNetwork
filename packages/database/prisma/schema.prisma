@@ -158,6 +158,9 @@ model Organization {
   subscription Subscription?
   verificationRequests VerificationRequest[]
   inventoryItems       InventoryItem[]
+  customers            Customer[]
+  invoices             Invoice[]
+  customerPayments     CustomerPayment[]
   stockMovements       StockMovement[]
 
   rfqs            Rfq[]              @relation("BuyerRfqs")
@@ -652,4 +655,81 @@ model StockMovement {
 
   @@index([orgId, createdAt])
   @@index([productId, createdAt])
+}
+
+// A seller's own customer book (walk-in, account or contractor customers). Separate from platform
+// organizations: a customer need not have a BuildSourceNetwork account.
+// creditLimit null = no limit enforced. Balance is always derived from invoices and payments.
+model Customer {
+  id               String    @id @default(cuid())
+  orgId            String
+  name             String
+  contactName      String?
+  phone            String?
+  email            String?
+  city             String?
+  address          String?
+  taxNumber        String?
+  creditLimit      Decimal?  @db.Decimal(14, 2)
+  paymentTermsDays Int       @default(30)
+  notes            String?
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  org      Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  invoices Invoice[]
+  payments CustomerPayment[]
+
+  @@unique([orgId, name])
+  @@index([orgId, isActive])
+}
+
+model Invoice {
+  id          String    @id @default(cuid())
+  orgId       String
+  customerId  String
+  number      String
+  reference   String?
+  description String?
+  issuedAt    DateTime  @default(now())
+  dueAt       DateTime
+  subtotal    Decimal   @db.Decimal(14, 2)
+  vatAmount   Decimal   @default(0) @db.Decimal(14, 2)
+  total       Decimal   @db.Decimal(14, 2)
+  notes       String?
+  voidedAt    DateTime?
+  voidReason  String?
+  createdById String?
+  createdAt   DateTime  @default(now())
+
+  org      Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  customer Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  payments CustomerPayment[]
+
+  @@unique([orgId, number])
+  @@index([orgId, customerId, issuedAt])
+  @@index([orgId, dueAt])
+}
+
+model CustomerPayment {
+  id          String    @id @default(cuid())
+  orgId       String
+  customerId  String
+  invoiceId   String?
+  amount      Decimal   @db.Decimal(14, 2)
+  method      String
+  reference   String?
+  note        String?
+  receivedAt  DateTime
+  voidedAt    DateTime?
+  createdById String?
+  createdAt   DateTime  @default(now())
+
+  org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  customer Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  invoice  Invoice?     @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  @@index([orgId, customerId, receivedAt])
+  @@index([invoiceId])
 }

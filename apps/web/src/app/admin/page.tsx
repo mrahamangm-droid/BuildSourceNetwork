@@ -34,7 +34,7 @@ export default async function AdminHome() {
         {stat("Open RFQs", o.openRfqs)}
         {stat("RFQs (30 days)", o.rfqs30)}
         {stat("Orders (30 days)", o.orders30)}
-        {stat("Order value (30 days)", `AED ${ o.gmv30.toLocaleString("en-AE", { maximumFractionDigits: 0 })}`)}
+        {stat("Order value (30 days)", `AED ${o.gmv30.toLocaleString("en-AE", { maximumFractionDigits: 0 })}`)}
       </div>
       <Card>
         <h2 className="mb-2 font-semibold">Companies by type</h2>
@@ -54,7 +54,7 @@ export default async function AdminHome() {
             <li key={r.id} className="flex flex-wrap justify-between gap-2 py-2">
               <span>
                 <code>{r.action}</code>
-                {r.org ? ` · ${ r.org.name}` : ""}
+                {r.org ? ` · ${r.org.name}` : ""}
               </span>
               <span className="text-muted">
                 {r.actor?.email ?? "system"} · {r.createdAt.toISOString().slice(0, 16).replace("T", " ")}

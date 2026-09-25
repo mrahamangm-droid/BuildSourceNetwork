@@ -16,6 +16,7 @@ import * as orders from "./services/orders";
 import * as admin from "./services/admin";
 import * as inventory from "./services/inventory";
 import * as delivery from "./services/delivery";
+import * as customers from "./services/customers";
 import type { DeliveryStatusValue } from "@/lib/delivery-rules";
 import { ORDER_STATUSES, type OrderStatus } from "@bmn/config";
 
@@ -511,4 +512,90 @@ export async function advanceDeliveryAction(_: ActionState, fd: FormData): Promi
   revalidatePath(`/dashboard/orders/${str(fd, "orderId")}`);
   revalidatePath("/dashboard/deliveries");
   return { ok: true, message: "Delivery updated." };
+}
+
+// ───────── customers & credit ─────────
+
+const customerPayload = (fd: FormData) => ({
+  name: str(fd, "name"),
+  contactName: str(fd, "contactName"),
+  phone: str(fd, "phone"),
+  email: str(fd, "email"),
+  city: str(fd, "city"),
+  address: str(fd, "address"),
+  taxNumber: str(fd, "taxNumber"),
+  creditLimit: str(fd, "creditLimit"),
+  paymentTermsDays: str(fd, "paymentTermsDays") || 30,
+  notes: str(fd, "notes"),
+});
+
+export async function saveCustomerAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const id = str(fd, "id");
+  let target = id;
+  try {
+    const ctx = await requireCtx();
+    if (id) await customers.updateCustomer(ctx, id, customerPayload(fd));
+    else target = (await customers.createCustomer(ctx, customerPayload(fd))).id;
+  } catch (e) {
+    return fail(e);
+  }
+  revalidatePath("/dashboard/customers");
+  redirect(`/dashboard/customers/${target}`);
+}
+
+export async function createInvoiceAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const customerId = str(fd, "customerId");
+  try {
+    const ctx = await requireCtx();
+    const inv = await customers.createInvoice(ctx, customerId, {
+      description: str(fd, "description"),
+      reference: str(fd, "reference"),
+      subtotal: str(fd, "subtotal"),
+      vatPercent: str(fd, "vatPercent") || 5,
+      issuedAt: str(fd, "issuedAt"),
+      termsDays: str(fd, "termsDays"),
+      notes: str(fd, "notes"),
+      overrideCredit: fd.get("overrideCredit") === "on",
+    });
+    revalidatePath(`/dashboard/customers/${customerId}`);
+    return { ok: true, message: `Invoice ${inv.number} created.` };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function recordPaymentAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const customerId = str(fd, "customerId");
+  try {
+    const ctx = await requireCtx();
+    await customers.recordPayment(ctx, customerId, {
+      amount: str(fd, "amount"),
+      method: str(fd, "method"),
+      invoiceId: str(fd, "invoiceId"),
+      reference: str(fd, "reference"),
+      note: str(fd, "note"),
+      receivedAt: str(fd, "receivedAt"),
+    });
+    revalidatePath(`/dashboard/customers/${customerId}`);
+    return { ok: true, message: "Payment recorded." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function voidInvoiceAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requireCtx();
+    await customers.voidInvoice(ctx, str(fd, "invoiceId"), str(fd, "reason"));
+    revalidatePath(`/dashboard/customers/${str(fd, "customerId")}`);
+    return { ok: true, message: "Invoice voided." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function voidPaymentAction(fd: FormData) {
+  const ctx = await requireCtx();
+  await customers.voidPayment(ctx, str(fd, "paymentId"));
+  revalidatePath(`/dashboard/customers/${str(fd, "customerId")}`);
 }

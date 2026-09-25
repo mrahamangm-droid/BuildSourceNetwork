@@ -17,7 +17,7 @@ Customers & credit (Step 16): a seller's own customer book with credit limits an
 
 Volume pricing (Step 12): sellers can add up to six quantity price breaks per product (/dashboard/products/[id]/pricing). Breaks must sit above the minimum order, be strictly cheaper than the base price and than every smaller tier, and are enforced in code and by a DB CHECK; the public product page shows the tier table with savings, and the resolver never charges more than the base price if a break goes stale.
 
-Projects & BOQ (Step 17): contractors and buyers keep projects with a priced bill of quantities (waste allowance, per-section subtotals, budget variance, CSV export that neutralises spreadsheet formulas) at /dashboard/projects. The starter bill is a transparent rule-based estimate from floor area and project type, not machine learning and not a drawing take-off; its assumptions are listed in the UI.
+Projects & BOQ (Step 17): contractors and buyers keep projects with a priced bill of quantities (waste allowance, per-section subtotals, budget variance, CSV export that neutralises spreadsheet formulas) at /dashboard/projects. The starter bill is a transparent rule-based estimate from floor area and project type, not machine learning and not a drawing take-off; its assumptions are listed in the UI. Ticked BOQ lines can be sent as a quote request: they pre-fill the RFQ form with order quantities (waste included), a guessed category and unit where the match is confident, and blanks where it is not; the buyer edits everything before sending.
 
 Not built yet (spec phases 2–4): pricing engine beyond price tiers, projects/BOQ/AI, calculators, blog, subscription billing, multi-branch, RFQ file attachments.
 

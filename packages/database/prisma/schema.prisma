@@ -364,6 +364,7 @@ model Rfq {
   recipients RfqRecipient[]
   quotes     Quote[]
   orders     Order[]
+  attachments RfqAttachment[]
 
   @@index([buyerOrgId, status])
   @@index([status, expiresAt])
@@ -847,4 +848,20 @@ model PlanRequest {
 
   @@index([status, createdAt])
   @@index([orgId, createdAt])
+}
+
+/// Private files (drawings, specs) attached to an RFQ. Served only through an authorized route.
+model RfqAttachment {
+  id           String   @id @default(cuid())
+  rfqId        String
+  uploadedById String
+  filename     String
+  contentType  String
+  sizeBytes    Int
+  storageKey   String   @unique
+  createdAt    DateTime @default(now())
+
+  rfq Rfq @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+
+  @@index([rfqId])
 }

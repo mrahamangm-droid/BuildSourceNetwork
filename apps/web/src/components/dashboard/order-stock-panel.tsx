@@ -35,8 +35,8 @@ export function OrderStockPanel({
     <Card>
       <h2 className="font-semibold">Stock for this order</h2>
       <p className="mt-1 text-sm text-muted">
-        Link each line to one of your products to hold the stock. Dispatching the order issues reserved goods
-        and cancelling it releases them. Units must match; nothing is converted.
+        Link each line to one of your products to hold the stock. Dispatching the order issues
+        reserved goods and cancelling it releases them. Units must match; nothing is converted.
       </p>
       <form action={action} className="mt-3 space-y-3">
         <input type="hidden" name="orderId" value={orderId} />
@@ -49,7 +49,9 @@ export function OrderStockPanel({
                   {l.quantity} {l.unitCode.toLowerCase()}
                 </p>
               </div>
-              <Badge tone={l.state === "RESERVED" ? "amber" : l.state === "ISSUED" ? "green" : "neutral"}>
+              <Badge
+                tone={l.state === "RESERVED" ? "amber" : l.state === "ISSUED" ? "green" : "neutral"}
+              >
                 {STOCK_STATE_LABEL[l.state]}
               </Badge>
               {l.state === "NONE" || l.state === "RELEASED" ? (
@@ -92,21 +94,35 @@ export function OrderStockPanel({
           </label>
         ) : null}
         {!canReserve && anyOpen ? (
-          <p className="text-xs text-muted">Stock can be reserved while the order is confirmed or being prepared.</p>
+          <p className="text-xs text-muted">
+            Stock can be reserved while the order is confirmed or being prepared.
+          </p>
         ) : null}
         <FormMessage state={state} />
         <div className="flex flex-wrap gap-2">
           {canReserve && anyOpen ? (
-            <button name="intent" value="reserve" className="h-9 rounded-lg bg-brand-600 px-3 text-sm font-medium text-white hover:bg-brand-700">
+            <button
+              name="intent"
+              value="reserve"
+              className="h-9 rounded-lg bg-brand-600 px-3 text-sm font-medium text-white hover:bg-brand-700"
+            >
               Reserve stock
             </button>
           ) : null}
           {anyReserved ? (
             <>
-              <button name="intent" value="issue" className="h-9 rounded-lg border border-line px-3 text-sm hover:bg-surface">
+              <button
+                name="intent"
+                value="issue"
+                className="h-9 rounded-lg border border-line px-3 text-sm hover:bg-surface"
+              >
                 Issue reserved stock now
               </button>
-              <button name="intent" value="release" className="h-9 rounded-lg border border-line px-3 text-sm hover:bg-surface">
+              <button
+                name="intent"
+                value="release"
+                className="h-9 rounded-lg border border-line px-3 text-sm hover:bg-surface"
+              >
                 Release reservation
               </button>
             </>

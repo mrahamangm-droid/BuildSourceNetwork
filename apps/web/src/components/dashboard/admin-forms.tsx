@@ -28,7 +28,14 @@ export function ReviewForm({ requestId }: { requestId: string }) {
         <Button type="submit" name="decision" value="APPROVE" size="sm" disabled={pending}>
           Approve
         </Button>
-        <Button type="submit" name="decision" value="REJECT" size="sm" variant="danger" disabled={pending}>
+        <Button
+          type="submit"
+          name="decision"
+          value="REJECT"
+          size="sm"
+          variant="danger"
+          disabled={pending}
+        >
           Reject
         </Button>
       </div>
@@ -61,7 +68,9 @@ export function SettingsForm({ rows }: { rows: { key: string; label: string; val
             {r.label}
           </label>
           <Input id={r.key} name={r.key} defaultValue={r.value} inputMode="numeric" />
-          {fe(state, r.key) ? <p className="mt-1 text-xs text-red-600">{fe(state, r.key)}</p> : null}
+          {fe(state, r.key) ? (
+            <p className="mt-1 text-xs text-red-600">{fe(state, r.key)}</p>
+          ) : null}
         </div>
       ))}
       <FormMessage state={state} />
@@ -71,19 +80,39 @@ export function SettingsForm({ rows }: { rows: { key: string; label: string; val
 }
 
 export function PlanReviewForm({ requestId }: { requestId: string }) {
-  const [state, action, pending] = useActionState<ActionState, FormData>(reviewPlanRequestAction, {});
+  const [state, action, pending] = useActionState<ActionState, FormData>(
+    reviewPlanRequestAction,
+    {},
+  );
   return (
     <form action={action} className="mt-3 space-y-2">
       <input type="hidden" name="requestId" value={requestId} />
-      <Input name="paymentRef" placeholder="Payment or invoice reference (required to approve)" aria-label="Payment reference" />
-      {fe(state, "paymentRef") ? <p className="text-xs text-red-600">{fe(state, "paymentRef")}</p> : null}
-      <Input name="note" placeholder="Note to the company (required when rejecting)" aria-label="Review note" />
+      <Input
+        name="paymentRef"
+        placeholder="Payment or invoice reference (required to approve)"
+        aria-label="Payment reference"
+      />
+      {fe(state, "paymentRef") ? (
+        <p className="text-xs text-red-600">{fe(state, "paymentRef")}</p>
+      ) : null}
+      <Input
+        name="note"
+        placeholder="Note to the company (required when rejecting)"
+        aria-label="Review note"
+      />
       {fe(state, "note") ? <p className="text-xs text-red-600">{fe(state, "note")}</p> : null}
       <div className="flex gap-2">
         <Button type="submit" name="decision" value="APPROVE" size="sm" disabled={pending}>
           Activate for 30 days
         </Button>
-        <Button type="submit" name="decision" value="REJECT" size="sm" variant="danger" disabled={pending}>
+        <Button
+          type="submit"
+          name="decision"
+          value="REJECT"
+          size="sm"
+          variant="danger"
+          disabled={pending}
+        >
           Reject
         </Button>
       </div>

@@ -16,8 +16,8 @@ export function PlanRequestForm({
     <Card>
       <h2 className="font-semibold">Request a plan</h2>
       <p className="mt-1 text-sm text-muted">
-        Online payment is not connected yet. Send a request and our team will confirm payment details, then
-        activate your plan for 30 days.
+        Online payment is not connected yet. Send a request and our team will confirm payment
+        details, then activate your plan for 30 days.
       </p>
       <form action={action} className="mt-3 grid gap-3">
         <Field label="Plan" error={fe(state, "planCode")}>
@@ -28,7 +28,11 @@ export function PlanRequestForm({
             {plans.map((p) => (
               <option key={p.code} value={p.code}>
                 {p.name}
-                {p.priceMonthlyCents ? ` — $${p.priceMonthlyCents / 100}/month` : p.priceMonthlyCents === null ? " — custom" : ""}
+                {p.priceMonthlyCents
+                  ? ` — $${p.priceMonthlyCents / 100}/month`
+                  : p.priceMonthlyCents === null
+                    ? " — custom"
+                    : ""}
                 {p.code === currentCode ? " (renew)" : ""}
               </option>
             ))}

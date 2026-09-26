@@ -41,11 +41,24 @@ const toLocalInput = (iso: string | null) => {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 };
 
-function DeliveryFields({ state, d, defaultAddress }: { state: ActionState; d?: DeliveryView; defaultAddress?: string }) {
+function DeliveryFields({
+  state,
+  d,
+  defaultAddress,
+}: {
+  state: ActionState;
+  d?: DeliveryView;
+  defaultAddress?: string;
+}) {
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <Field label="Delivery date and time" error={fe(state, "scheduledAt")}>
-        <Input name="scheduledAt" type="datetime-local" required defaultValue={toLocalInput(d?.scheduledAt ?? null)} />
+        <Input
+          name="scheduledAt"
+          type="datetime-local"
+          required
+          defaultValue={toLocalInput(d?.scheduledAt ?? null)}
+        />
       </Field>
       <Field label="Driver name" error={fe(state, "driverName")}>
         <Input name="driverName" maxLength={80} defaultValue={d?.driverName ?? ""} />
@@ -58,7 +71,12 @@ function DeliveryFields({ state, d, defaultAddress }: { state: ActionState; d?: 
       </Field>
       <div className="sm:col-span-2">
         <Field label="Delivery address (if different from the order)" error={fe(state, "address")}>
-          <Input name="address" maxLength={300} defaultValue={d?.address ?? ""} placeholder={defaultAddress} />
+          <Input
+            name="address"
+            maxLength={300}
+            defaultValue={d?.address ?? ""}
+            placeholder={defaultAddress}
+          />
         </Field>
       </div>
       <div className="sm:col-span-2">
@@ -95,7 +113,17 @@ function EditForm({ orderId, d }: { orderId: string; d: DeliveryView }) {
   );
 }
 
-function StepForm({ orderId, d, target, label }: { orderId: string; d: DeliveryView; target: string; label: string }) {
+function StepForm({
+  orderId,
+  d,
+  target,
+  label,
+}: {
+  orderId: string;
+  d: DeliveryView;
+  target: string;
+  label: string;
+}) {
   const [state, action] = useActionState<ActionState, FormData>(advanceDeliveryAction, {});
   return (
     <form action={action} className="space-y-2">
@@ -120,7 +148,15 @@ function StepForm({ orderId, d, target, label }: { orderId: string; d: DeliveryV
   );
 }
 
-function DeliveryCard({ orderId, d, canManage }: { orderId: string; d: DeliveryView; canManage: boolean }) {
+function DeliveryCard({
+  orderId,
+  d,
+  canManage,
+}: {
+  orderId: string;
+  d: DeliveryView;
+  canManage: boolean;
+}) {
   const [editing, setEditing] = useState(false);
   const done = d.status === "DELIVERED";
   const nextStep =
@@ -134,10 +170,16 @@ function DeliveryCard({ orderId, d, canManage }: { orderId: string; d: DeliveryV
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Badge tone={tone[d.status]}>{DELIVERY_LABEL[d.status]}</Badge>
-          <span className="font-medium">{d.scheduledAt ? formatDate(d.scheduledAt) : "No date set"}</span>
+          <span className="font-medium">
+            {d.scheduledAt ? formatDate(d.scheduledAt) : "No date set"}
+          </span>
         </div>
         {canManage && !done ? (
-          <button type="button" className="text-brand-700 hover:underline" onClick={() => setEditing((v) => !v)}>
+          <button
+            type="button"
+            className="text-brand-700 hover:underline"
+            onClick={() => setEditing((v) => !v)}
+          >
             {editing ? "Close" : "Edit"}
           </button>
         ) : null}
@@ -193,14 +235,21 @@ function DeliveryCard({ orderId, d, canManage }: { orderId: string; d: DeliveryV
         ) : null}
       </dl>
       {d.proofUrl ? (
-        <a href={d.proofUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-brand-700 hover:underline">
+        <a
+          href={d.proofUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-2 inline-block text-brand-700 hover:underline"
+        >
           View proof of delivery
         </a>
       ) : null}
       {canManage && !done ? (
         <div className="mt-3 space-y-3 border-t border-line pt-3">
           {editing ? <EditForm orderId={orderId} d={d} /> : null}
-          {nextStep ? <StepForm orderId={orderId} d={d} target={nextStep.target} label={nextStep.label} /> : null}
+          {nextStep ? (
+            <StepForm orderId={orderId} d={d} target={nextStep.target} label={nextStep.label} />
+          ) : null}
         </div>
       ) : null}
     </Card>
@@ -220,7 +269,8 @@ export function DeliveryPanel({
   canManage: boolean;
   deliveries: DeliveryView[];
 }) {
-  const canSchedule = canManage && (DELIVERABLE_ORDER_STATUSES as readonly string[]).includes(orderStatus);
+  const canSchedule =
+    canManage && (DELIVERABLE_ORDER_STATUSES as readonly string[]).includes(orderStatus);
   if (!deliveries.length && !canSchedule) return null;
   return (
     <section className="space-y-3">

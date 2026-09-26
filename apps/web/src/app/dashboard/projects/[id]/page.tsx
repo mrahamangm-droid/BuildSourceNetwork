@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireCtx } from "@/server/access";
 import { getProject } from "@/server/services/projects";
+import { aiStatus } from "@/server/services/ai-boq";
 import { Badge, Button, Card, PageHeader } from "@/components/ui";
 import {
   AddItemForm,
@@ -10,6 +11,7 @@ import {
   ProjectForm,
   StarterForm,
 } from "@/components/dashboard/project-forms";
+import { AiBoqForm } from "@/components/dashboard/ai-boq-form";
 import { formatMoney } from "@/lib/utils";
 import {
   fromCents,
@@ -30,6 +32,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
   const data = await getProject(ctx, id); // org scoped
   if (!data) notFound();
   const { project: p, summary: s } = data;
+  const ai = await aiStatus(ctx);
   const money = (c: number) => formatMoney(fromCents(c));
   return (
     <div className="space-y-6">
@@ -154,6 +157,13 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
         <AddItemForm projectId={id} sections={s.sections.map((x) => x.section)} />
         <StarterForm projectId={id} />
       </div>
+      <AiBoqForm
+        projectId={id}
+        configured={ai.configured}
+        remaining={ai.remaining}
+        cap={ai.cap}
+        planName={ai.planName}
+      />
 
       <section>
         <h2 className="mb-2 text-lg font-semibold">Project details</h2>

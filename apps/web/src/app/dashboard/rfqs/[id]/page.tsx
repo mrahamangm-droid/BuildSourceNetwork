@@ -13,6 +13,7 @@ import { db } from "@bmn/database";
 import { Alert, Badge, Button, Card, PageHeader, Select } from "@/components/ui";
 import { DemoBadge, VerifiedBadge } from "@/components/market/parts";
 import { QuoteForm } from "@/components/dashboard/quote-form";
+import { SplitAward } from "@/components/dashboard/split-award";
 import { RfqAttachments } from "@/components/dashboard/rfq-attachments";
 import { listAttachments } from "@/server/services/rfq-attachments";
 import { formatDate, formatMoney, formatQty } from "@/lib/utils";
@@ -192,6 +193,10 @@ export default async function RfqDetailPage({
       verified: q.supplierOrg.verificationStatus === "VERIFIED",
       sameCity: (q.supplierOrg.city ?? "").trim().toLowerCase() === city,
     }));
+  const splitQuotes = open
+    ? quotes.filter((q) => q.status === "SUBMITTED" && q.validUntil > new Date())
+    : [];
+  const sameCurrency = new Set(splitQuotes.map((q) => q.currency)).size === 1;
   const bestValue = bestValueId(compareInput);
   const scores = valueScores(compareInput);
   const partialItems = rfq.items.filter((it) =>
@@ -465,6 +470,31 @@ export default async function RfqDetailPage({
           No quotes yet. Suppliers usually respond within a day — we will notify you as they arrive.
         </Alert>
       )}
+      {splitQuotes.length >= 2 && rfq.items.length >= 2 && sameCurrency ? (
+        <SplitAward
+          rfqId={rfq.id}
+          currency={splitQuotes[0]!.currency}
+          items={rfq.items.map((i) => ({
+            id: i.id,
+            name: i.name,
+            quantity: Number(i.quantity),
+            unit: i.unit.name,
+          }))}
+          quotes={splitQuotes.map((q) => ({
+            id: q.id,
+            deliveryCost: Number(q.deliveryCost),
+            supplier: q.supplierOrg.name,
+          }))}
+          offers={splitQuotes.flatMap((q) =>
+            q.items.map((qi) => ({
+              quoteId: q.id,
+              rfqItemId: qi.rfqItemId,
+              unitPrice: Number(qi.unitPrice),
+              quantityAvailable: Number(qi.quantityAvailable),
+            })),
+          )}
+        />
+      ) : null}
       {partialItems.length ? (
         <Card className="mt-4 text-sm">
           <p className="font-semibold">Short on an item? See alternatives</p>

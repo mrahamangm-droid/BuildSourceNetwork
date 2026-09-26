@@ -1,3 +1,4 @@
+import { SupplyChain } from "@/components/market/supply-chain";
 import { notFound } from "next/navigation";
 import { db } from "@bmn/database";
 import { Badge, Card, LinkButton } from "@/components/ui";
@@ -147,6 +148,12 @@ export async function OrgProfile({
           ) : null}
         </div>
         <aside className="space-y-4">
+          <Card>
+            <h2 className="font-semibold">Supply chain</h2>
+            <div className="mt-2">
+              <SupplyChain org={org} />
+            </div>
+          </Card>
           <Card>
             <h2 className="font-semibold">Trust</h2>
             <dl className="mt-2 space-y-1 text-sm">

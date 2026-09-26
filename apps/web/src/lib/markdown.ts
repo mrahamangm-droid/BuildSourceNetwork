@@ -24,7 +24,8 @@ export function safeHref(raw: string): { href: string; external: boolean } | nul
   return null;
 }
 
-const INLINE = /(\*\*([^*\n]+)\*\*|\*([^*\n]+)\*|`([^`\n]+)`|\[([^\]\n]+)\]\(((?:[^()\s]|\([^()\s]*\))+)\))/g;
+const INLINE =
+  /(\*\*([^*\n]+)\*\*|\*([^*\n]+)\*|`([^`\n]+)`|\[([^\]\n]+)\]\(((?:[^()\s]|\([^()\s]*\))+)\))/g;
 
 export function parseInline(src: string): Inline[] {
   const out: Inline[] = [];

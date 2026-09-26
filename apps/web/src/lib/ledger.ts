@@ -5,8 +5,21 @@
  * A payment may be allocated to one invoice; unallocated payments are applied first-in-first-out
  * to the oldest outstanding invoices when working out what is overdue.
  */
-export type InvoiceRow = { id: string; number: string; issuedAt: Date; dueAt: Date; totalCents: number; voided: boolean };
-export type PaymentRow = { id: string; invoiceId: string | null; amountCents: number; receivedAt: Date; voided: boolean };
+export type InvoiceRow = {
+  id: string;
+  number: string;
+  issuedAt: Date;
+  dueAt: Date;
+  totalCents: number;
+  voided: boolean;
+};
+export type PaymentRow = {
+  id: string;
+  invoiceId: string | null;
+  amountCents: number;
+  receivedAt: Date;
+  voided: boolean;
+};
 
 export const toCents = (n: number) => Math.round((n + Number.EPSILON) * 100);
 export const fromCents = (c: number) => c / 100;
@@ -33,13 +46,16 @@ export function balanceCents(invoices: InvoiceRow[], payments: PaymentRow[]) {
 
 /** Amount still owing per (non-void) invoice, after allocated payments and FIFO application of unallocated ones. */
 export function outstandingByInvoice(invoices: InvoiceRow[], payments: PaymentRow[]) {
-  const live = invoices.filter((i) => !i.voided).sort((a, b) => a.issuedAt.getTime() - b.issuedAt.getTime());
+  const live = invoices
+    .filter((i) => !i.voided)
+    .sort((a, b) => a.issuedAt.getTime() - b.issuedAt.getTime());
   const out = new Map<string, number>();
   for (const i of live) out.set(i.id, i.totalCents);
   let floating = 0;
   for (const p of payments) {
     if (p.voided) continue;
-    if (p.invoiceId && out.has(p.invoiceId)) out.set(p.invoiceId, out.get(p.invoiceId)! - p.amountCents);
+    if (p.invoiceId && out.has(p.invoiceId))
+      out.set(p.invoiceId, out.get(p.invoiceId)! - p.amountCents);
     else floating += p.amountCents;
   }
   // Overpayments on one invoice do not vanish: they join the floating credit.
@@ -62,14 +78,24 @@ export function outstandingByInvoice(invoices: InvoiceRow[], payments: PaymentRo
 
 export type InvoiceStatus = "VOID" | "PAID" | "PARTIAL" | "OVERDUE" | "OPEN";
 
-export function invoiceStatus(inv: InvoiceRow, outstandingCents: number, now = new Date()): InvoiceStatus {
+export function invoiceStatus(
+  inv: InvoiceRow,
+  outstandingCents: number,
+  now = new Date(),
+): InvoiceStatus {
   if (inv.voided) return "VOID";
   if (outstandingCents <= 0) return "PAID";
   if (inv.dueAt.getTime() < now.getTime()) return "OVERDUE";
   return outstandingCents < inv.totalCents ? "PARTIAL" : "OPEN";
 }
 
-export const AGING_BUCKETS = ["Not yet due", "1-30 days", "31-60 days", "61-90 days", "Over 90 days"] as const;
+export const AGING_BUCKETS = [
+  "Not yet due",
+  "1-30 days",
+  "31-60 days",
+  "61-90 days",
+  "Over 90 days",
+] as const;
 
 export function aging(invoices: InvoiceRow[], payments: PaymentRow[], now = new Date()) {
   const outstanding = outstandingByInvoice(invoices, payments);
@@ -79,7 +105,8 @@ export function aging(invoices: InvoiceRow[], payments: PaymentRow[], now = new 
     const owed = outstanding.get(i.id) ?? 0;
     if (owed <= 0) continue;
     const daysLate = Math.floor((now.getTime() - i.dueAt.getTime()) / 86_400_000);
-    const idx = daysLate <= 0 ? 0 : daysLate <= 30 ? 1 : daysLate <= 60 ? 2 : daysLate <= 90 ? 3 : 4;
+    const idx =
+      daysLate <= 0 ? 0 : daysLate <= 30 ? 1 : daysLate <= 60 ? 2 : daysLate <= 90 ? 3 : 4;
     buckets[idx] += owed;
   }
   return buckets;
@@ -87,7 +114,8 @@ export function aging(invoices: InvoiceRow[], payments: PaymentRow[], now = new 
 
 /** limitCents === null means no limit is enforced. */
 export function creditCheck(balance: number, limitCents: number | null, newInvoiceCents: number) {
-  if (limitCents === null) return { ok: true, availableCents: null as number | null, overByCents: 0 };
+  if (limitCents === null)
+    return { ok: true, availableCents: null as number | null, overByCents: 0 };
   const after = balance + newInvoiceCents;
   return {
     ok: after <= limitCents,
@@ -133,10 +161,28 @@ export function buildStatement(
     if ("i" in x && x.i) {
       const i = x.i;
       if (!i.voided) running += i.totalCents;
-      return { date: i.issuedAt, kind: "INVOICE", ref: i.number, description: i.description ?? "Invoice", debitCents: i.totalCents, creditCents: 0, balanceCents: running, voided: i.voided };
+      return {
+        date: i.issuedAt,
+        kind: "INVOICE",
+        ref: i.number,
+        description: i.description ?? "Invoice",
+        debitCents: i.totalCents,
+        creditCents: 0,
+        balanceCents: running,
+        voided: i.voided,
+      };
     }
     const p = (x as { p: PaymentRow & { ref?: string; method?: string } }).p;
     if (!p.voided) running -= p.amountCents;
-    return { date: p.receivedAt, kind: "PAYMENT", ref: p.ref ?? "", description: `Payment${p.method ? ` (${p.method.replace("_", " ").toLowerCase()})` : ""}`, debitCents: 0, creditCents: p.amountCents, balanceCents: running, voided: p.voided };
+    return {
+      date: p.receivedAt,
+      kind: "PAYMENT",
+      ref: p.ref ?? "",
+      description: `Payment${p.method ? ` (${p.method.replace("_", " ").toLowerCase()})` : ""}`,
+      debitCents: 0,
+      creditCents: p.amountCents,
+      balanceCents: running,
+      voided: p.voided,
+    };
   });
 }

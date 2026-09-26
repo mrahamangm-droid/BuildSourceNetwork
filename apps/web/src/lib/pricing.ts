@@ -55,7 +55,11 @@ export function validateBreaks(
 ): { sorted: Break[]; issues: BreakIssue[] } {
   const issues: BreakIssue[] = [];
   if (rows.length > MAX_BREAKS)
-    issues.push({ row: MAX_BREAKS, field: "row", message: `Use at most ${MAX_BREAKS} price breaks.` });
+    issues.push({
+      row: MAX_BREAKS,
+      field: "row",
+      message: `Use at most ${MAX_BREAKS} price breaks.`,
+    });
   rows.forEach((r, i) => {
     if (!Number.isFinite(r.minQty) || r.minQty <= 0)
       issues.push({ row: i, field: "minQty", message: "Quantity must be greater than 0." });
@@ -76,7 +80,9 @@ export function validateBreaks(
   });
   if (issues.length) return { sorted: [], issues };
 
-  const idx = rows.map((r, i) => ({ ...r, i })).sort((a, b) => toMilli(a.minQty) - toMilli(b.minQty));
+  const idx = rows
+    .map((r, i) => ({ ...r, i }))
+    .sort((a, b) => toMilli(a.minQty) - toMilli(b.minQty));
   for (let k = 1; k < idx.length; k++) {
     const prev = idx[k - 1];
     const cur = idx[k];

@@ -6,7 +6,12 @@
  * unpaid plan cannot keep paid limits forever. Nothing is deleted on a downgrade: existing
  * products stay live, only adding more is blocked.
  */
-export type PlanRow = { code: string; name: string; productLimit: number | null; rfqLimit: number | null };
+export type PlanRow = {
+  code: string;
+  name: string;
+  productLimit: number | null;
+  rfqLimit: number | null;
+};
 export type SubRow = { planCode: string; status: string; currentPeriodEnd: Date | null };
 
 export const GRACE_DAYS = 7;
@@ -24,10 +29,21 @@ export type EffectiveLimits = {
   daysLeft: number | null;
 };
 
-export function effectiveLimits(sub: SubRow | null, plans: PlanRow[], now = new Date()): EffectiveLimits {
-  const free = plans.find((p) => p.code === "FREE") ?? { code: "FREE", name: "Free", productLimit: 10, rfqLimit: 5 };
+export function effectiveLimits(
+  sub: SubRow | null,
+  plans: PlanRow[],
+  now = new Date(),
+): EffectiveLimits {
+  const free = plans.find((p) => p.code === "FREE") ?? {
+    code: "FREE",
+    name: "Free",
+    productLimit: 10,
+    rfqLimit: 5,
+  };
   const plan = sub ? plans.find((p) => p.code === sub.planCode) : undefined;
-  const daysLeft = sub?.currentPeriodEnd ? Math.ceil((sub.currentPeriodEnd.getTime() - now.getTime()) / DAY) : null;
+  const daysLeft = sub?.currentPeriodEnd
+    ? Math.ceil((sub.currentPeriodEnd.getTime() - now.getTime()) / DAY)
+    : null;
   const asFree = (lapsed: boolean): EffectiveLimits => ({
     planCode: free.code,
     planName: free.name,
@@ -39,7 +55,8 @@ export function effectiveLimits(sub: SubRow | null, plans: PlanRow[], now = new 
   if (!sub || !plan) return asFree(false);
   if (plan.code === "FREE") return asFree(false);
   if (sub.status !== "ACTIVE") return asFree(true);
-  if (sub.currentPeriodEnd && sub.currentPeriodEnd.getTime() + GRACE_DAYS * DAY < now.getTime()) return asFree(true);
+  if (sub.currentPeriodEnd && sub.currentPeriodEnd.getTime() + GRACE_DAYS * DAY < now.getTime())
+    return asFree(true);
   return {
     planCode: plan.code,
     planName: plan.name,
@@ -52,7 +69,10 @@ export function effectiveLimits(sub: SubRow | null, plans: PlanRow[], now = new 
 
 export type UsageLevel = "unlimited" | "ok" | "warn" | "full";
 
-export function usageLevel(used: number, limit: number | null): { level: UsageLevel; percent: number } {
+export function usageLevel(
+  used: number,
+  limit: number | null,
+): { level: UsageLevel; percent: number } {
   if (limit === null) return { level: "unlimited", percent: 0 };
   if (limit <= 0) return { level: "full", percent: 100 };
   const percent = Math.min(100, Math.round((used / limit) * 100));

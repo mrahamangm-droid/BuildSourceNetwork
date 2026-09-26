@@ -49,8 +49,7 @@ export function safeFilename(name: string): string {
 }
 
 export type AttachmentCheck =
-  | { ok: true; filename: string; ext: string; contentType: string }
-  | { ok: false; error: string };
+  { ok: true; filename: string; ext: string; contentType: string } | { ok: false; error: string };
 
 /** Extension decides the type (browsers report DWG etc. inconsistently); magic bytes must agree. */
 export function validateAttachment(filename: string, bytes: Uint8Array): AttachmentCheck {

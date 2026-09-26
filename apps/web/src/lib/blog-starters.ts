@@ -2,7 +2,13 @@
  * Two evergreen how-to articles an admin can import as DRAFTS and edit before publishing.
  * They contain practical guidance only: no statistics, prices, quotes or claims about real companies.
  */
-export type StarterPost = { slug: string; title: string; excerpt: string; tags: string[]; body: string };
+export type StarterPost = {
+  slug: string;
+  title: string;
+  excerpt: string;
+  tags: string[];
+  body: string;
+};
 
 export const STARTER_POSTS: StarterPost[] = [
   {

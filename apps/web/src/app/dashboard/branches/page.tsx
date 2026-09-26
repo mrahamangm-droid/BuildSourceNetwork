@@ -50,7 +50,10 @@ export default async function BranchesPage({
                     orderLines: w.orderLines,
                   });
                   return (
-                    <li key={w.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+                    <li
+                      key={w.id}
+                      className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
+                    >
                       <span className="font-medium">{w.name}</span>
                       <span className="flex items-center gap-2">
                         <Badge tone={w.stockedProducts ? "blue" : "neutral"}>

@@ -80,7 +80,11 @@ export default async function RfqDetailPage({
         <div className="mb-4">
           <RfqAttachments
             rfqId={rfq.id}
-            files={(await listAttachments(ctx, rfq.id)).map((f) => ({ id: f.id, filename: f.filename, sizeBytes: f.sizeBytes }))}
+            files={(await listAttachments(ctx, rfq.id)).map((f) => ({
+              id: f.id,
+              filename: f.filename,
+              sizeBytes: f.sizeBytes,
+            }))}
             canEdit={false}
           />
         </div>
@@ -185,7 +189,11 @@ export default async function RfqDetailPage({
       <div className="mb-4">
         <RfqAttachments
           rfqId={rfq.id}
-          files={(await listAttachments(ctx, rfq.id)).map((f) => ({ id: f.id, filename: f.filename, sizeBytes: f.sizeBytes }))}
+          files={(await listAttachments(ctx, rfq.id)).map((f) => ({
+            id: f.id,
+            filename: f.filename,
+            sizeBytes: f.sizeBytes,
+          }))}
           canEdit={open}
         />
       </div>

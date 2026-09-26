@@ -5,9 +5,16 @@ import { assertCan, assertOrgType, assertVerified, type Ctx } from "../ctx";
 import { AppError } from "../errors";
 import { fieldErrorsFrom } from "./accounts";
 import { audit } from "./notify";
-import { assertWithinLimit } from "./plans";
+import { assertWithinLimit, getEffectiveLimits } from "./plans";
+import { hit } from "../rate-limit";
 import { rankMatches, tokenize, type MatchCandidate } from "@/lib/match";
 import { rankAlternatives, type AltCandidate } from "@/lib/alternatives";
+import {
+  parseProductList,
+  productImportRowsSchema,
+  type ProductImportIssue,
+  type ProductImportRow,
+} from "@/lib/product-import";
 
 const money = z.coerce.number().positive("Must be greater than 0").max(1e9);
 const optMoney = z.preprocess(
@@ -573,4 +580,153 @@ export async function alternativesFor(productId: string, limit = 4) {
     cands,
     { limit },
   ).map((a) => ({ ...a, product: byId.get(a.item.id)! }));
+}
+
+// ───────────────────────── bulk import ─────────────────────────
+
+function importGuard(ctx: Ctx) {
+  assertCan(ctx, "product.manage");
+  assertOrgType(ctx, ...SELLER_TYPES);
+  assertVerified(ctx);
+}
+
+/** Step 1: read a pasted list or uploaded CSV. Saves nothing; SKUs you already use are set aside. */
+export async function previewProductImport(ctx: Ctx, text: string) {
+  importGuard(ctx);
+  const rl = hit(`product-import:${ctx.userId}`, 20, 60_000);
+  if (!rl.ok)
+    throw new AppError(`Slow down: try again in ${rl.retryAfterSec} seconds.`, "RATE_LIMIT");
+  if (!text.trim())
+    throw new AppError("Paste a list or choose a file first.", "VALIDATION", {
+      text: "Paste a list or choose a file",
+    });
+  const [cats, units, skus] = await Promise.all([
+    db.category.findMany({ select: { name: true } }),
+    db.unit.findMany({ select: { code: true } }),
+    db.product.findMany({
+      where: { orgId: ctx.orgId, sku: { not: null } },
+      select: { sku: true },
+    }),
+  ]);
+  const parsed = parseProductList(text, {
+    categories: cats.map((c) => c.name),
+    unitCodes: units.map((u) => u.code),
+  });
+  if (!parsed.rows.length && !parsed.issues.length)
+    throw new AppError(
+      "We could not find a header row. The first row needs at least Name and Price columns.",
+      "VALIDATION",
+      { text: "No header row with Name and Price found" },
+    );
+  const used = new Set(skus.map((s) => (s.sku ?? "").toLowerCase()));
+  const issues: ProductImportIssue[] = [...parsed.issues];
+  const rows: ProductImportRow[] = [];
+  for (const r of parsed.rows) {
+    if (r.sku && used.has(r.sku.toLowerCase()))
+      issues.push({
+        row: 0,
+        name: r.name.slice(0, 60),
+        message: `SKU “${r.sku}” is already in your catalogue`,
+      });
+    else rows.push(r);
+  }
+  return { rows, issues: issues.slice(0, 50), truncated: parsed.truncated };
+}
+
+/** Step 2: create the products the user kept. Every row is re-validated; all-or-nothing. */
+export async function importProducts(ctx: Ctx, raw: unknown) {
+  importGuard(ctx);
+  const parsed = productImportRowsSchema.safeParse(raw);
+  if (!parsed.success)
+    throw new AppError(
+      parsed.error.issues[0]?.message ?? "Select at least one product",
+      "VALIDATION",
+    );
+  const rows = parsed.data;
+
+  const [cats, units, org, existing, lim, active] = await Promise.all([
+    db.category.findMany({ select: { id: true, name: true } }),
+    db.unit.findMany({ select: { code: true } }),
+    db.organization.findUniqueOrThrow({ where: { id: ctx.orgId }, select: { city: true } }),
+    db.product.findMany({ where: { orgId: ctx.orgId }, select: { slug: true, sku: true } }),
+    getEffectiveLimits(ctx.orgId),
+    db.product.count({ where: { orgId: ctx.orgId, isActive: true } }),
+  ]);
+  if (lim.productLimit !== null && active + rows.length > lim.productLimit) {
+    const room = Math.max(0, lim.productLimit - active);
+    throw new AppError(
+      `Your ${lim.planName} plan allows ${lim.productLimit} active products and you have ${active}. Import at most ${room} now, or upgrade.`,
+      "FORBIDDEN",
+    );
+  }
+  const catId = new Map(cats.map((c) => [c.name.toLowerCase(), c.id]));
+  const unitOk = new Set(units.map((u) => u.code));
+  const usedSku = new Set(existing.map((e) => (e.sku ?? "").toLowerCase()).filter(Boolean));
+  const usedSlug = new Set(existing.map((e) => e.slug));
+  const fileSku = new Set<string>();
+  for (const r of rows) {
+    if (!catId.has(r.categoryName.toLowerCase()))
+      throw new AppError(`Unknown category “${r.categoryName}”. Import again.`, "VALIDATION");
+    if (!unitOk.has(r.unitCode))
+      throw new AppError(`Unknown unit “${r.unitCode}”. Import again.`, "VALIDATION");
+    if (r.sku) {
+      const k = r.sku.toLowerCase();
+      if (usedSku.has(k) || fileSku.has(k))
+        throw new AppError(`SKU “${r.sku}” is already used. Import again.`, "CONFLICT");
+      fileSku.add(k);
+    }
+  }
+
+  const brandNames = [...new Set(rows.map((r) => r.brandName).filter(Boolean))];
+  const brandId = new Map<string, string>();
+  for (const name of brandNames) {
+    const slug = slugify(name);
+    if (!slug) continue;
+    const b = await db.brand.upsert({ where: { slug }, update: {}, create: { slug, name } });
+    brandId.set(name, b.id);
+  }
+
+  const slugFor = (name: string) => {
+    const root = slugify(name) || "product";
+    let slug = root;
+    for (let i = 2; usedSlug.has(slug); i++) slug = `${root}-${i}`;
+    usedSlug.add(slug);
+    return slug;
+  };
+
+  const created = await db.$transaction(
+    rows.map((r) =>
+      db.product.create({
+        data: {
+          orgId: ctx.orgId,
+          categoryId: catId.get(r.categoryName.toLowerCase())!,
+          brandId: r.brandName ? (brandId.get(r.brandName) ?? null) : null,
+          unitCode: r.unitCode,
+          sku: r.sku || null,
+          name: r.name,
+          slug: slugFor(r.name),
+          description: r.description || null,
+          packageSize: r.packageSize || null,
+          minOrderQty: r.minOrderQty,
+          stockStatus: r.stockStatus,
+          price: r.price,
+          wholesalePrice: r.wholesalePrice,
+          contractorPrice: r.contractorPrice,
+          vatRatePercent: r.vatRatePercent,
+          city: r.city || org.city,
+          prices: { create: { price: r.price, tier: "RETAIL", changedBy: ctx.userId } },
+        },
+        select: { id: true },
+      }),
+    ),
+  );
+  await audit({
+    orgId: ctx.orgId,
+    actorId: ctx.userId,
+    action: "product.imported",
+    entity: "Product",
+    entityId: created[0]?.id ?? "",
+    meta: { count: created.length },
+  });
+  return created.length;
 }

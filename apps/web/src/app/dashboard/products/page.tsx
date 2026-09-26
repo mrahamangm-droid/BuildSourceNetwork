@@ -24,7 +24,14 @@ export default async function ProductsPage({
       <PageHeader
         title="Products"
         description="Your catalogue. Active products appear in the public marketplace."
-        action={<LinkButton href="/dashboard/products/new">Add product</LinkButton>}
+        action={
+          <div className="flex flex-wrap gap-2">
+            <LinkButton href="/dashboard/products/import" variant="outline">
+              Import from spreadsheet
+            </LinkButton>
+            <LinkButton href="/dashboard/products/new">Add product</LinkButton>
+          </div>
+        }
       />
       {sp.saved ? (
         <div className="mb-4">

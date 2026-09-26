@@ -314,7 +314,9 @@ export async function removeRfqAttachmentAction(fd: FormData) {
     const ctx = await requireCtx();
     await rfqAttachments.removeAttachment(ctx, str(fd, "id"));
   } catch (e) {
-    redirect(`/dashboard/rfqs/${rfqId}?error=${encodeURIComponent(fail(e).error ?? "Could not remove file")}`);
+    redirect(
+      `/dashboard/rfqs/${rfqId}?error=${encodeURIComponent(fail(e).error ?? "Could not remove file")}`,
+    );
   }
   revalidatePath(`/dashboard/rfqs/${rfqId}`);
 }
@@ -462,7 +464,8 @@ const MOVES = ["RECEIPT", "ISSUE", "ADJUSTMENT", "RESERVE", "RELEASE"] as const;
 
 export async function stockMovementAction(_: ActionState, fd: FormData): Promise<ActionState> {
   const kind = str(fd, "kind");
-  if (!(MOVES as readonly string[]).includes(kind)) return { error: "Choose what happened to the stock." };
+  if (!(MOVES as readonly string[]).includes(kind))
+    return { error: "Choose what happened to the stock." };
   try {
     const ctx = await requireCtx();
     const r = await inventory.move(ctx, kind as (typeof MOVES)[number], {
@@ -525,7 +528,11 @@ export async function importStarterPostsAction() {
 export async function createBranchAction(_: ActionState, fd: FormData): Promise<ActionState> {
   try {
     const ctx = await requireCtx();
-    await branches.createBranch(ctx, { name: str(fd, "name"), city: str(fd, "city"), address: str(fd, "address") });
+    await branches.createBranch(ctx, {
+      name: str(fd, "name"),
+      city: str(fd, "city"),
+      address: str(fd, "address"),
+    });
     revalidatePath("/dashboard/branches");
     return { ok: true, message: "Branch added." };
   } catch (e) {
@@ -567,7 +574,9 @@ async function branchesRedirect(work: () => Promise<void>): Promise<never> {
     error = fail(e).error ?? "Something went wrong";
   }
   revalidatePath("/dashboard/branches");
-  redirect(error ? `/dashboard/branches?error=${encodeURIComponent(error)}` : "/dashboard/branches");
+  redirect(
+    error ? `/dashboard/branches?error=${encodeURIComponent(error)}` : "/dashboard/branches",
+  );
 }
 
 export async function deleteBranchAction(fd: FormData) {
@@ -599,7 +608,12 @@ export async function transferStockAction(_: ActionState, fd: FormData): Promise
 export async function reorderLevelAction(_: ActionState, fd: FormData): Promise<ActionState> {
   try {
     const ctx = await requireCtx();
-    await inventory.setReorderLevel(ctx, str(fd, "productId"), undefined, Number(str(fd, "reorderLevel")));
+    await inventory.setReorderLevel(
+      ctx,
+      str(fd, "productId"),
+      undefined,
+      Number(str(fd, "reorderLevel")),
+    );
     revalidatePath("/dashboard/inventory");
     return { ok: true, message: "Reorder level saved." };
   } catch (e) {
@@ -750,7 +764,10 @@ export async function savePriceBreaksAction(_: ActionState, fd: FormData): Promi
     const n = await pricing.saveBreaks(ctx, productId, rows);
     revalidatePath(`/dashboard/products/${productId}/pricing`);
     revalidatePath(`/products/${productId}`);
-    return { ok: true, message: n ? `${n} price break${n === 1 ? "" : "s"} saved.` : "Price breaks cleared." };
+    return {
+      ok: true,
+      message: n ? `${n} price break${n === 1 ? "" : "s"} saved.` : "Price breaks cleared.",
+    };
   } catch (e) {
     return fail(e);
   }
@@ -872,7 +889,10 @@ export async function requestPlanAction(_: ActionState, fd: FormData): Promise<A
     const ctx = await requireCtx();
     await plans.requestPlan(ctx, { planCode: str(fd, "planCode"), note: str(fd, "note") });
     revalidatePath("/dashboard/billing");
-    return { ok: true, message: "Request sent. We will confirm payment details and activate your plan." };
+    return {
+      ok: true,
+      message: "Request sent. We will confirm payment details and activate your plan.",
+    };
   } catch (e) {
     return fail(e);
   }

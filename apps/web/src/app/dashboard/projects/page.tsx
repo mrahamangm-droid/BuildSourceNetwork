@@ -5,14 +5,21 @@ import { requireCtx } from "@/server/access";
 import { listProjects } from "@/server/services/projects";
 import { Badge, EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { formatMoney } from "@/lib/utils";
-import { fromCents, PROJECT_KIND_LABEL, PROJECT_STATUS_LABEL, type ProjectKind, type ProjectStatusValue } from "@/lib/boq";
+import {
+  fromCents,
+  PROJECT_KIND_LABEL,
+  PROJECT_STATUS_LABEL,
+  type ProjectKind,
+  type ProjectStatusValue,
+} from "@/lib/boq";
 import { BUYER_TYPES, roleHas } from "@bmn/config";
 
 export const metadata: Metadata = { title: "Projects & BOQ" };
 
 export default async function ProjectsPage() {
   const ctx = await requireCtx();
-  if (!BUYER_TYPES.includes(ctx.orgType) || !roleHas(ctx.role, "project.manage")) redirect("/dashboard");
+  if (!BUYER_TYPES.includes(ctx.orgType) || !roleHas(ctx.role, "project.manage"))
+    redirect("/dashboard");
   const rows = await listProjects(ctx);
   return (
     <div className="space-y-5">
@@ -37,7 +44,10 @@ export default async function ProjectsPage() {
               {rows.map((p) => (
                 <tr key={p.id}>
                   <td className="px-4 py-3">
-                    <Link href={`/dashboard/projects/${p.id}`} className="font-medium hover:text-brand-700">
+                    <Link
+                      href={`/dashboard/projects/${p.id}`}
+                      className="font-medium hover:text-brand-700"
+                    >
                       {p.name}
                     </Link>
                     <p className="text-xs text-muted">
@@ -46,16 +56,28 @@ export default async function ProjectsPage() {
                     </p>
                   </td>
                   <td className="px-4 py-3">
-                    <Badge tone={p.status === "ACTIVE" ? "green" : p.status === "ON_HOLD" ? "amber" : "neutral"}>
+                    <Badge
+                      tone={
+                        p.status === "ACTIVE"
+                          ? "green"
+                          : p.status === "ON_HOLD"
+                            ? "amber"
+                            : "neutral"
+                      }
+                    >
                       {PROJECT_STATUS_LABEL[p.status as ProjectStatusValue]}
                     </Badge>
                   </td>
                   <td className="px-4 py-3 text-right">
                     {p.itemCount}
-                    {p.unpriced ? <span className="block text-xs text-amber-700">{p.unpriced} unpriced</span> : null}
+                    {p.unpriced ? (
+                      <span className="block text-xs text-amber-700">{p.unpriced} unpriced</span>
+                    ) : null}
                   </td>
                   <td className="px-4 py-3 text-right">{formatMoney(fromCents(p.totalCents))}</td>
-                  <td className="px-4 py-3 text-right">{p.budget === null ? "—" : formatMoney(p.budget)}</td>
+                  <td className="px-4 py-3 text-right">
+                    {p.budget === null ? "—" : formatMoney(p.budget)}
+                  </td>
                 </tr>
               ))}
             </tbody>

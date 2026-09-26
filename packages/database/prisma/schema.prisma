@@ -360,12 +360,14 @@ model Rfq {
   status          RfqStatus @default(OPEN)
   isGetQuotes     Boolean   @default(false)
   targetSupplierCount Int   @default(3)
+  projectId       String?
   expiresAt       DateTime
   isDemo          Boolean   @default(false)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
   buyerOrg   Organization   @relation("BuyerRfqs", fields: [buyerOrgId], references: [id], onDelete: Cascade)
+  project    Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
   items      RfqItem[]
   recipients RfqRecipient[]
   quotes     Quote[]
@@ -374,6 +376,7 @@ model Rfq {
 
   @@index([buyerOrgId, status])
   @@index([status, expiresAt])
+  @@index([projectId])
 }
 
 model RfqItem {
@@ -805,6 +808,7 @@ model Project {
 
   org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   items BoqItem[]
+  rfqs  Rfq[]
 
   @@index([orgId, status])
 }

@@ -37,7 +37,10 @@ export default async function AdminBlogPage() {
           ))}
         </ul>
       ) : (
-        <EmptyState title="No articles yet" body="Write your own, or add two starter guides as drafts to edit." />
+        <EmptyState
+          title="No articles yet"
+          body="Write your own, or add two starter guides as drafts to edit."
+        />
       )}
       <form action={importStarterPostsAction}>
         <Button type="submit" variant="outline" size="sm">

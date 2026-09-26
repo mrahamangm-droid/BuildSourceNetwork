@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@bmn/database";
 import { requireCtx } from "@/server/access";
-import { getOwnProduct } from "@/server/services/products";
+import { getProductFormLists, getOwnProduct } from "@/server/services/products";
 import { PageHeader } from "@/components/ui";
 import { ProductForm } from "@/components/dashboard/product-form";
 
@@ -13,12 +13,13 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
   const ctx = await requireCtx();
   const p = await getOwnProduct(ctx, (await params).id); // org-scoped: other companies' ids return null
   if (!p) notFound();
-  const [categoryRows, units] = await Promise.all([
+  const [categoryRows, units, lists] = await Promise.all([
     db.category.findMany({
       orderBy: { sortOrder: "asc" },
       select: { id: true, name: true, department: { select: { name: true } } },
     }),
     db.unit.findMany({ orderBy: { name: "asc" }, select: { code: true, name: true } }),
+    getProductFormLists(),
   ]);
   const specs =
     p.specifications && typeof p.specifications === "object"
@@ -45,6 +46,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
       <ProductForm
         categories={categories}
         units={units}
+        lists={lists}
         values={{
           id: p.id,
           name: p.name,
@@ -53,6 +55,15 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
           subcategoryId: p.subcategoryId,
           productTypeId: p.productTypeId,
           brandName: p.brand?.name,
+          manufacturerName: p.manufacturer?.name,
+          material: p.material,
+          grade: p.grade,
+          size: p.size,
+          dimensions: p.dimensions,
+          color: p.color,
+          finish: p.finish,
+          application: p.application,
+          countryOfOrigin: p.countryOfOrigin,
           unitCode: p.unitCode,
           description: p.description,
           packageSize: p.packageSize,

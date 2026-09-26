@@ -2,9 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireCtx } from "@/server/access";
-import { cancelRfqAction, acceptQuoteAction, declineRfqAction } from "@/server/actions";
+import {
+  cancelRfqAction,
+  acceptQuoteAction,
+  declineRfqAction,
+  linkRfqProjectAction,
+} from "@/server/actions";
 import { expireStale, getBuyerRfq, getSupplierRfq } from "@/server/services/rfq";
-import { Alert, Badge, Button, Card, PageHeader } from "@/components/ui";
+import { db } from "@bmn/database";
+import { Alert, Badge, Button, Card, PageHeader, Select } from "@/components/ui";
 import { DemoBadge, VerifiedBadge } from "@/components/market/parts";
 import { QuoteForm } from "@/components/dashboard/quote-form";
 import { RfqAttachments } from "@/components/dashboard/rfq-attachments";
@@ -153,6 +159,12 @@ export default async function RfqDetailPage({
   const rfq = await getBuyerRfq(ctx, id);
   if (!rfq) notFound();
   const open = rfq.status === "OPEN";
+  const projectOptions = await db.project.findMany({
+    where: { orgId: ctx.orgId },
+    select: { id: true, name: true },
+    orderBy: { updatedAt: "desc" },
+    take: 100,
+  });
   const quotes = rfq.quotes;
   const cheapest = quotes
     .filter((q) => q.status === "SUBMITTED" || q.status === "ACCEPTED")
@@ -216,6 +228,31 @@ export default async function RfqDetailPage({
         </div>
       ) : null}
 
+      <form
+        action={linkRfqProjectAction}
+        className="mb-4 flex flex-wrap items-center gap-2 text-sm"
+      >
+        <input type="hidden" name="rfqId" value={rfq.id} />
+        <label htmlFor="rfq-project" className="text-muted">
+          Project
+        </label>
+        <Select
+          id="rfq-project"
+          name="projectId"
+          defaultValue={rfq.projectId ?? ""}
+          className="max-w-xs"
+        >
+          <option value="">Not linked to a project</option>
+          {projectOptions.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </Select>
+        <Button type="submit" variant="outline">
+          Save
+        </Button>
+      </form>
       <div className="mb-4">
         <RfqAttachments
           rfqId={rfq.id}

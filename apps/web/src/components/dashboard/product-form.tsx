@@ -2,6 +2,7 @@
 import { useActionState } from "react";
 import { Card, Field, Input, Select, Textarea } from "@/components/ui";
 import { FormMessage, ImageUpload, SubmitButton, fe } from "@/components/forms/shared";
+import { SuggestInput } from "@/components/forms/suggest-input";
 import { TaxonomyPicker, type CategoryOption } from "@/components/forms/taxonomy-picker";
 import { saveProductAction, type ActionState } from "@/server/actions";
 
@@ -13,6 +14,15 @@ export type ProductFormValues = {
   subcategoryId?: string | null;
   productTypeId?: string | null;
   brandName?: string;
+  manufacturerName?: string;
+  material?: string | null;
+  grade?: string | null;
+  size?: string | null;
+  dimensions?: string | null;
+  color?: string | null;
+  finish?: string | null;
+  application?: string | null;
+  countryOfOrigin?: string | null;
   unitCode?: string;
   description?: string | null;
   packageSize?: string | null;
@@ -29,14 +39,29 @@ export type ProductFormValues = {
   imageUrl?: string | null;
 };
 
+/** Type-ahead suggestions, supplied by the server so the client bundle stays small. */
+export type ProductFormLists = {
+  brands: string[];
+  manufacturers: string[];
+  materials: string[];
+  grades: string[];
+  sizes: string[];
+  colors: string[];
+  finishes: string[];
+  applications: string[];
+  origins: string[];
+};
+
 export function ProductForm({
   values,
   categories,
   units,
+  lists,
 }: {
   values: ProductFormValues;
   categories: CategoryOption[];
   units: { code: string; name: string }[];
+  lists: ProductFormLists;
 }) {
   const [state, action] = useActionState<ActionState, FormData>(saveProductAction, {});
   return (
@@ -66,8 +91,21 @@ export function ProductForm({
           }}
         />
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Brand">
-            <Input name="brandName" defaultValue={values.brandName} />
+          <Field label="Brand" hint="Pick a known brand or type your own">
+            <SuggestInput
+              name="brandName"
+              options={lists.brands}
+              defaultValue={values.brandName}
+              maxLength={80}
+            />
+          </Field>
+          <Field label="Manufacturer" hint="Filled in automatically for known brands">
+            <SuggestInput
+              name="manufacturerName"
+              options={lists.manufacturers}
+              defaultValue={values.manufacturerName}
+              maxLength={80}
+            />
           </Field>
           <Field label="SKU" error={fe(state, "sku")}>
             <Input name="sku" defaultValue={values.sku ?? ""} />
@@ -76,10 +114,58 @@ export function ProductForm({
         <Field label="Description" error={fe(state, "description")}>
           <Textarea name="description" defaultValue={values.description ?? ""} rows={3} />
         </Field>
-        <Field label="Specifications" hint="One per line, as “Name: value” (e.g. Strength: 42.5N)">
+        <ImageUpload name="imageUrl" label="Product image" initial={values.imageUrl} />
+      </Card>
+      <Card className="space-y-4">
+        <h2 className="font-semibold">Attributes</h2>
+        <p className="text-sm text-muted">
+          These make the product easy to filter and compare. Fill in what applies and leave the rest
+          blank.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Material">
+            <SuggestInput
+              name="material"
+              options={lists.materials}
+              defaultValue={values.material}
+            />
+          </Field>
+          <Field label="Grade / class">
+            <SuggestInput name="grade" options={lists.grades} defaultValue={values.grade} />
+          </Field>
+          <Field label="Size">
+            <SuggestInput name="size" options={lists.sizes} defaultValue={values.size} />
+          </Field>
+          <Field label="Dimensions" hint="e.g. 600 x 600 x 10 mm">
+            <Input name="dimensions" defaultValue={values.dimensions ?? ""} maxLength={120} />
+          </Field>
+          <Field label="Colour">
+            <SuggestInput name="color" options={lists.colors} defaultValue={values.color} />
+          </Field>
+          <Field label="Finish">
+            <SuggestInput name="finish" options={lists.finishes} defaultValue={values.finish} />
+          </Field>
+          <Field label="Application">
+            <SuggestInput
+              name="application"
+              options={lists.applications}
+              defaultValue={values.application}
+            />
+          </Field>
+          <Field label="Country of origin">
+            <SuggestInput
+              name="countryOfOrigin"
+              options={lists.origins}
+              defaultValue={values.countryOfOrigin}
+            />
+          </Field>
+        </div>
+        <Field
+          label="Other specifications"
+          hint="One per line, as “Name: value” (e.g. Strength: 42.5N)"
+        >
           <Textarea name="specifications" defaultValue={values.specifications} rows={3} />
         </Field>
-        <ImageUpload name="imageUrl" label="Product image" initial={values.imageUrl} />
       </Card>
       <Card className="space-y-4">
         <h2 className="font-semibold">Pricing & units</h2>

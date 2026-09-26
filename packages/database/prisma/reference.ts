@@ -3,7 +3,7 @@
  * platform settings. Idempotent (upserts only) and free of demo data, so it is safe to run
  * on every production deploy. Sign-up fails without the FREE plan row.
  */
-import { CATEGORIES, PLANS, TAXONOMY, UNITS, slugify } from "@bmn/config";
+import { CATEGORIES, MANUFACTURERS, PLANS, TAXONOMY, UNITS, slugify } from "@bmn/config";
 import type { PrismaClient } from "../src/generated/client";
 
 export async function seedReference(db: PrismaClient) {
@@ -17,6 +17,7 @@ export async function seedReference(db: PrismaClient) {
     });
   }
   await syncTaxonomy(db);
+  await syncManufacturers(db);
   for (const u of UNITS) {
     await db.unit.upsert({
       where: { code: u.code },
@@ -157,5 +158,42 @@ export async function syncTaxonomy(db: PrismaClient) {
         where: { id: row.id },
         data: { name: t.name, sortOrder: t.sortOrder },
       });
+  }
+}
+
+/**
+ * Seeds well-known manufacturers and the brands they own. Create-only and cheap on repeat runs:
+ * it never renames or deletes anything, and only fills in a brand's manufacturer when the brand
+ * has none yet, so a supplier's own choices are never overwritten.
+ */
+export async function syncManufacturers(db: PrismaClient) {
+  const mfrRows = await db.manufacturer.findMany({ select: { id: true, slug: true } });
+  const have = new Set(mfrRows.map((m) => m.slug));
+  const missing = MANUFACTURERS.filter((m) => !have.has(m.slug)).map((m) => ({
+    slug: m.slug,
+    name: m.name,
+    country: m.country,
+  }));
+  if (missing.length) await db.manufacturer.createMany({ data: missing, skipDuplicates: true });
+  const mfrId = new Map((await db.manufacturer.findMany()).map((m) => [m.slug, m.id]));
+
+  const brandRows = await db.brand.findMany({
+    select: { id: true, slug: true, manufacturerId: true },
+  });
+  const brandBySlug = new Map(brandRows.map((b) => [b.slug, b]));
+  const wanted = new Map<string, { slug: string; name: string; manufacturerId: string }>();
+  for (const m of MANUFACTURERS)
+    for (const name of m.brands) {
+      const slug = slugify(name);
+      if (slug && !wanted.has(slug))
+        wanted.set(slug, { slug, name, manufacturerId: mfrId.get(m.slug)! });
+    }
+  const newBrands = [...wanted.values()].filter((b) => !brandBySlug.has(b.slug));
+  for (const part of chunks(newBrands))
+    await db.brand.createMany({ data: part, skipDuplicates: true });
+  for (const b of wanted.values()) {
+    const row = brandBySlug.get(b.slug);
+    if (row && !row.manufacturerId)
+      await db.brand.update({ where: { id: row.id }, data: { manufacturerId: b.manufacturerId } });
   }
 }

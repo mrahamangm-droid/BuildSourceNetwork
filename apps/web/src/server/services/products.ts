@@ -1,6 +1,15 @@
 import { z } from "zod";
 import { db, Prisma } from "@bmn/database";
-import { slugify } from "@bmn/config";
+import {
+  APPLICATIONS,
+  COLORS,
+  FINISHES,
+  GRADES,
+  MATERIALS,
+  ORIGINS,
+  SIZES,
+  slugify,
+} from "@bmn/config";
 import { assertCan, assertOrgType, assertVerified, type Ctx } from "../ctx";
 import { AppError } from "../errors";
 import { fieldErrorsFrom } from "./accounts";
@@ -29,6 +38,15 @@ export const productSchema = z.object({
   subcategoryId: z.string().trim().max(40).optional().default(""),
   productTypeId: z.string().trim().max(40).optional().default(""),
   brandName: z.string().trim().max(80).optional().default(""),
+  manufacturerName: z.string().trim().max(80).optional().default(""),
+  material: z.string().trim().max(80).optional().default(""),
+  grade: z.string().trim().max(80).optional().default(""),
+  size: z.string().trim().max(80).optional().default(""),
+  dimensions: z.string().trim().max(120).optional().default(""),
+  color: z.string().trim().max(60).optional().default(""),
+  finish: z.string().trim().max(60).optional().default(""),
+  application: z.string().trim().max(80).optional().default(""),
+  countryOfOrigin: z.string().trim().max(60).optional().default(""),
   unitCode: z.string().min(1, "Choose a unit"),
   description: z.string().trim().max(4000).optional().default(""),
   packageSize: z.string().trim().max(80).optional().default(""),
@@ -54,6 +72,20 @@ function parseSpecs(text: string): Record<string, string> | undefined {
     if (i > 0) out[line.slice(0, i).trim()] = line.slice(i + 1).trim();
   }
   return Object.keys(out).length ? out : undefined;
+}
+
+/** Structured attributes: blank means "not set", stored as null so filters never match empty strings. */
+function attributeData(d: ProductInput) {
+  return {
+    material: d.material || null,
+    grade: d.grade || null,
+    size: d.size || null,
+    dimensions: d.dimensions || null,
+    color: d.color || null,
+    finish: d.finish || null,
+    application: d.application || null,
+    countryOfOrigin: d.countryOfOrigin || null,
+  };
 }
 
 async function uniqueProductSlug(orgId: string, name: string, excludeId?: string) {
@@ -111,8 +143,17 @@ async function resolveRefs(d: ProductInput) {
         create: { slug: slugify(d.brandName), name: d.brandName },
       })
     : null;
+  // A named manufacturer wins; otherwise a known brand brings its own manufacturer along.
+  const manufacturer = d.manufacturerName
+    ? await db.manufacturer.upsert({
+        where: { slug: slugify(d.manufacturerName) },
+        update: {},
+        create: { slug: slugify(d.manufacturerName), name: d.manufacturerName },
+      })
+    : null;
   return {
     brandId: brand?.id ?? null,
+    manufacturerId: manufacturer?.id ?? brand?.manufacturerId ?? null,
     subcategoryId: d.subcategoryId || null,
     productTypeId: d.productTypeId || null,
   };
@@ -133,7 +174,7 @@ export async function createProduct(ctx: Ctx, raw: unknown) {
     );
   const d = parsed.data;
   await assertProductLimit(ctx);
-  const { brandId, subcategoryId, productTypeId } = await resolveRefs(d);
+  const { brandId, manufacturerId, subcategoryId, productTypeId } = await resolveRefs(d);
   if (d.sku) {
     const dup = await db.product.findFirst({
       where: { orgId: ctx.orgId, sku: d.sku },
@@ -155,6 +196,8 @@ export async function createProduct(ctx: Ctx, raw: unknown) {
       subcategoryId,
       productTypeId,
       brandId,
+      manufacturerId,
+      ...attributeData(d),
       unitCode: d.unitCode,
       sku: d.sku || null,
       name: d.name,
@@ -197,7 +240,7 @@ export async function updateProduct(ctx: Ctx, id: string, raw: unknown) {
       fieldErrorsFrom(parsed.error),
     );
   const d = parsed.data;
-  const { brandId, subcategoryId, productTypeId } = await resolveRefs(d);
+  const { brandId, manufacturerId, subcategoryId, productTypeId } = await resolveRefs(d);
   if (d.sku && d.sku !== existing.sku) {
     const dup = await db.product.findFirst({
       where: { orgId: ctx.orgId, sku: d.sku, id: { not: id } },
@@ -217,6 +260,8 @@ export async function updateProduct(ctx: Ctx, id: string, raw: unknown) {
       subcategoryId,
       productTypeId,
       brandId,
+      manufacturerId,
+      ...attributeData(d),
       unitCode: d.unitCode,
       sku: d.sku || null,
       name: d.name,
@@ -287,7 +332,7 @@ export async function listOwnProducts(ctx: Ctx, page = 1, pageSize = 20) {
 export async function getOwnProduct(ctx: Ctx, id: string) {
   return db.product.findFirst({
     where: { id, orgId: ctx.orgId },
-    include: { brand: true, images: true },
+    include: { brand: true, manufacturer: true, images: true },
   });
 }
 
@@ -297,6 +342,12 @@ export type SearchFilters = {
   subcategory?: string;
   productType?: string;
   brand?: string;
+  manufacturer?: string;
+  material?: string;
+  grade?: string;
+  color?: string;
+  finish?: string;
+  application?: string;
   supplier?: string;
   city?: string;
   verifiedOnly?: boolean;
@@ -324,6 +375,10 @@ export async function searchProducts(f: SearchFilters) {
           { sku: { contains: t, mode: "insensitive" } },
           { description: { contains: t, mode: "insensitive" } },
           { brand: { name: { contains: t, mode: "insensitive" } } },
+          { manufacturer: { name: { contains: t, mode: "insensitive" } } },
+          { material: { contains: t, mode: "insensitive" } },
+          { color: { contains: t, mode: "insensitive" } },
+          { application: { contains: t, mode: "insensitive" } },
           { category: { name: { contains: t, mode: "insensitive" } } },
           { subcategory: { name: { contains: t, mode: "insensitive" } } },
           { productType: { name: { contains: t, mode: "insensitive" } } },
@@ -357,6 +412,12 @@ export async function searchProducts(f: SearchFilters) {
         }
       : {}),
     ...(f.brand ? { brand: { slug: f.brand } } : {}),
+    ...(f.manufacturer ? { manufacturer: { slug: f.manufacturer } } : {}),
+    ...(f.material ? { material: { equals: f.material, mode: "insensitive" } } : {}),
+    ...(f.grade ? { grade: { equals: f.grade, mode: "insensitive" } } : {}),
+    ...(f.color ? { color: { equals: f.color, mode: "insensitive" } } : {}),
+    ...(f.finish ? { finish: { equals: f.finish, mode: "insensitive" } } : {}),
+    ...(f.application ? { application: { equals: f.application, mode: "insensitive" } } : {}),
     ...(f.city
       ? {
           OR: [
@@ -434,6 +495,7 @@ export async function getPublicProduct(id: string) {
       unit: true,
       category: true,
       brand: true,
+      manufacturer: true,
       images: { orderBy: { sortOrder: "asc" } },
       priceBreaks: { orderBy: { minQty: "asc" } },
       org: {
@@ -784,4 +846,23 @@ export async function importProducts(ctx: Ctx, raw: unknown) {
     meta: { count: created.length },
   });
   return created.length;
+}
+
+/** Suggestion lists for the product form: known brands and manufacturers plus attribute values. */
+export async function getProductFormLists() {
+  const [brands, manufacturers] = await Promise.all([
+    db.brand.findMany({ orderBy: { name: "asc" }, take: 3000, select: { name: true } }),
+    db.manufacturer.findMany({ orderBy: { name: "asc" }, take: 3000, select: { name: true } }),
+  ]);
+  return {
+    brands: brands.map((b) => b.name),
+    manufacturers: manufacturers.map((m) => m.name),
+    materials: [...MATERIALS],
+    grades: [...GRADES],
+    sizes: [...SIZES],
+    colors: [...COLORS],
+    finishes: [...FINISHES],
+    applications: [...APPLICATIONS],
+    origins: [...ORIGINS],
+  };
 }

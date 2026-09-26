@@ -54,6 +54,11 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
           sku: p.sku ?? undefined,
           description: p.description ?? undefined,
           brand: p.brand ? { "@type": "Brand", name: p.brand.name } : undefined,
+          manufacturer: p.manufacturer
+            ? { "@type": "Organization", name: p.manufacturer.name }
+            : undefined,
+          material: p.material ?? undefined,
+          color: p.color ?? undefined,
           image: p.images.map((i) => i.url),
           offers: {
             "@type": "Offer",
@@ -116,6 +121,26 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
                 <dd className="font-medium">{p.packageSize}</dd>
               </div>
             ) : null}
+            {(
+              [
+                ["Manufacturer", p.manufacturer?.name],
+                ["Material", p.material],
+                ["Grade / class", p.grade],
+                ["Size", p.size],
+                ["Dimensions", p.dimensions],
+                ["Colour", p.color],
+                ["Finish", p.finish],
+                ["Application", p.application],
+                ["Country of origin", p.countryOfOrigin],
+              ] as const
+            )
+              .filter(([, v]) => !!v)
+              .map(([label, v]) => (
+                <div key={label}>
+                  <dt className="text-muted">{label}</dt>
+                  <dd className="font-medium">{v}</dd>
+                </div>
+              ))}
             <div>
               <dt className="text-muted">Location</dt>
               <dd className="font-medium">{p.city ?? "—"}</dd>

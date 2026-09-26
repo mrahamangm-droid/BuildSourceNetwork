@@ -21,6 +21,7 @@ import * as pricing from "./services/pricing";
 import * as projects from "./services/projects";
 import * as orderStock from "./services/order-stock";
 import * as plans from "./services/plans";
+import * as rfqAttachments from "./services/rfq-attachments";
 import type { DeliveryStatusValue } from "@/lib/delivery-rules";
 import { ORDER_STATUSES, type OrderStatus } from "@bmn/config";
 
@@ -303,6 +304,17 @@ export async function cancelRfqAction(fd: FormData) {
   const ctx = await requireCtx();
   await rfq.cancelRfq(ctx, str(fd, "rfqId"));
   revalidatePath(`/dashboard/rfqs/${str(fd, "rfqId")}`);
+}
+
+export async function removeRfqAttachmentAction(fd: FormData) {
+  const rfqId = str(fd, "rfqId");
+  try {
+    const ctx = await requireCtx();
+    await rfqAttachments.removeAttachment(ctx, str(fd, "id"));
+  } catch (e) {
+    redirect(`/dashboard/rfqs/${rfqId}?error=${encodeURIComponent(fail(e).error ?? "Could not remove file")}`);
+  }
+  revalidatePath(`/dashboard/rfqs/${rfqId}`);
 }
 
 export async function acceptQuoteAction(fd: FormData) {

@@ -44,6 +44,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       "/pricing",
       "/building-materials",
       "/tools",
+      "/match",
+      "/contact",
     ].map((p) => ({ url: `${base}${p}`, lastModified: now })),
     ...CALCULATORS.map((c) => ({ url: `${base}/tools/${c.slug}`, lastModified: now })),
     ...cats.map((c) => ({ url: `${base}/building-materials/${c.slug}`, lastModified: now })),

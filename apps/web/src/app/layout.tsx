@@ -4,17 +4,19 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SwRegister } from "@/components/layout/sw-register";
 import { appUrl } from "@/lib/utils";
+import { BRAND } from "@/lib/company";
 
 export const metadata: Metadata = {
   metadataBase: new URL(appUrl()),
   title: {
-    default: "Building Materials Network — suppliers, prices and quotes",
-    template: "%s | Building Materials Network",
+    default: `${BRAND.name} — construction materials, suppliers and quotes`,
+    template: `%s | ${BRAND.name}`,
   },
   description:
     "Find suppliers, compare offers, request quotes and manage construction-material procurement in one place.",
-  applicationName: "Building Materials Network",
-  openGraph: { type: "website", siteName: "Building Materials Network" },
+  applicationName: BRAND.name,
+  openGraph: { type: "website", siteName: BRAND.name },
+  twitter: { card: "summary_large_image" },
   manifest: "/manifest.webmanifest",
 };
 

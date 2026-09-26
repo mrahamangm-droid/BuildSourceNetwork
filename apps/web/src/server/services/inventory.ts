@@ -18,9 +18,13 @@ type Tx = Prisma.TransactionClient;
 const D = (milli: number) => new Prisma.Decimal(fromMilli(milli).toFixed(3));
 const M = (d: { toString(): string }) => toMilli(Number(d.toString()));
 
-function guard(ctx: Ctx) {
+/** Reading stock needs no verified email, so the pages render (with the verify banner) for new accounts. */
+function view(ctx: Ctx) {
   assertOrgType(ctx, "SUPPLIER", "STORE");
   assertCan(ctx, "inventory.manage");
+}
+function guard(ctx: Ctx) {
+  view(ctx);
   assertVerified(ctx);
 }
 
@@ -215,7 +219,7 @@ export async function listStock(
   ctx: Ctx,
   opts: { q?: string; lowOnly?: boolean; warehouseId?: string } = {},
 ): Promise<StockRow[]> {
-  guard(ctx);
+  view(ctx);
   const products = await db.product.findMany({
     where: {
       orgId: ctx.orgId,
@@ -262,7 +266,7 @@ export async function listStock(
 }
 
 export async function listMovements(ctx: Ctx, opts: { productId?: string; take?: number } = {}) {
-  guard(ctx);
+  view(ctx);
   return db.stockMovement.findMany({
     where: { orgId: ctx.orgId, ...(opts.productId ? { productId: opts.productId } : {}) },
     orderBy: { createdAt: "desc" },

@@ -23,27 +23,39 @@ export default async function Companies({
     <div className="space-y-4">
       <PageHeader title="Companies" description={`${res.total} matching`} />
       <form className="flex flex-wrap gap-2">
-        <Input name="q" defaultValue={sp.q} placeholder="Search name, city or email" className="w-64" />
+        <Input
+          name="q"
+          defaultValue={sp.q}
+          placeholder="Search name, city or email"
+          className="w-64"
+        />
         <Select name="type" defaultValue={sp.type ?? ""} className="w-40">
           <option value="">All types</option>
           {Object.entries(ORG_TYPE_LABEL).map(([k, v]) => (
-            <option key={k} value={k}>{v}</option>
+            <option key={k} value={k}>
+              {v}
+            </option>
           ))}
         </Select>
         <Select name="status" defaultValue={sp.status ?? ""} className="w-40">
           <option value="">Any status</option>
           {["UNVERIFIED", "PENDING", "VERIFIED", "REJECTED"].map((s) => (
-            <option key={s} value={s}>{s.toLowerCase()}</option>
+            <option key={s} value={s}>
+              {s.toLowerCase()}
+            </option>
           ))}
         </Select>
-        <Button type="submit" variant="outline">Filter</Button>
+        <Button type="submit" variant="outline">
+          Filter
+        </Button>
       </form>
       {res.items.map((o) => (
         <Card key={o.id} className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="font-semibold">{o.name}</p>
             <p className="text-sm text-muted">
-              {ORG_TYPE_LABEL[o.type as OrgType]} · {o.city} · {o._count.members} users · {o._count.products} products
+              {ORG_TYPE_LABEL[o.type as OrgType]} · {o.city} · {o._count.members} users ·{" "}
+              {o._count.products} products
             </p>
             <div className="mt-1 flex gap-1">
               <Badge tone={o.verificationStatus === "VERIFIED" ? "green" : "neutral"}>

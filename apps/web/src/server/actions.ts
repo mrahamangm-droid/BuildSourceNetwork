@@ -21,6 +21,7 @@ import * as pricing from "./services/pricing";
 import * as projects from "./services/projects";
 import * as orderStock from "./services/order-stock";
 import * as plans from "./services/plans";
+import * as branches from "./services/branches";
 import * as rfqAttachments from "./services/rfq-attachments";
 import type { DeliveryStatusValue } from "@/lib/delivery-rules";
 import { ORDER_STATUSES, type OrderStatus } from "@bmn/config";
@@ -478,6 +479,82 @@ export async function stockMovementAction(_: ActionState, fd: FormData): Promise
   }
 }
 
+// ───────── branches & warehouses ─────────
+
+export async function createBranchAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requireCtx();
+    await branches.createBranch(ctx, { name: str(fd, "name"), city: str(fd, "city"), address: str(fd, "address") });
+    revalidatePath("/dashboard/branches");
+    return { ok: true, message: "Branch added." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function updateBranchAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requireCtx();
+    await branches.updateBranch(ctx, str(fd, "id"), {
+      name: str(fd, "name"),
+      city: str(fd, "city"),
+      address: str(fd, "address"),
+    });
+    revalidatePath("/dashboard/branches");
+    return { ok: true, message: "Branch saved." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function addWarehouseAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requireCtx();
+    await branches.addWarehouse(ctx, str(fd, "branchId"), { name: str(fd, "name") });
+    revalidatePath("/dashboard/branches");
+    return { ok: true, message: "Warehouse added." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+async function branchesRedirect(work: () => Promise<void>): Promise<never> {
+  let error: string | null = null;
+  try {
+    await work();
+  } catch (e) {
+    error = fail(e).error ?? "Something went wrong";
+  }
+  revalidatePath("/dashboard/branches");
+  redirect(error ? `/dashboard/branches?error=${encodeURIComponent(error)}` : "/dashboard/branches");
+}
+
+export async function deleteBranchAction(fd: FormData) {
+  return branchesRedirect(async () => branches.deleteBranch(await requireCtx(), str(fd, "id")));
+}
+
+export async function deleteWarehouseAction(fd: FormData) {
+  return branchesRedirect(async () => branches.deleteWarehouse(await requireCtx(), str(fd, "id")));
+}
+
+export async function transferStockAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requireCtx();
+    await branches.transferStock(ctx, {
+      productId: str(fd, "productId"),
+      fromWarehouseId: str(fd, "fromWarehouseId"),
+      toWarehouseId: str(fd, "toWarehouseId"),
+      quantity: str(fd, "quantity"),
+      note: str(fd, "note"),
+    });
+    revalidatePath("/dashboard/branches");
+    revalidatePath("/dashboard/inventory");
+    return { ok: true, message: "Stock transferred." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
 export async function reorderLevelAction(_: ActionState, fd: FormData): Promise<ActionState> {
   try {
     const ctx = await requireCtx();
@@ -736,7 +813,7 @@ export async function orderStockAction(_: ActionState, fd: FormData): Promise<Ac
       const mapping: Record<string, string> = {};
       for (const [k, v] of fd.entries())
         if (k.startsWith("product_") && typeof v === "string" && v) mapping[k.slice(8)] = v;
-      n = await orderStock.reserveOrderStock(ctx, orderId, mapping);
+      n = await orderStock.reserveOrderStock(ctx, orderId, mapping, str(fd, "warehouseId"));
     } else if (intent === "issue") n = await orderStock.issueOrderStock(ctx, orderId);
     else if (intent === "release") n = await orderStock.releaseOrderStock(ctx, orderId);
     else return { error: "Unknown stock action." };

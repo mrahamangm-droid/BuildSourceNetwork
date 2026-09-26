@@ -33,7 +33,7 @@ export function nextState(
 }
 
 /** What an order status change should do to reserved stock automatically. */
-export function autoActionFor(orderStatus: string): OrderStockAction | null {
+export function autoActionFor(orderStatus: string): Exclude<OrderStockAction, "reserve"> | null {
   if (orderStatus === "DISPATCHED") return "issue";
   if (orderStatus === "CANCELLED") return "release";
   return null;

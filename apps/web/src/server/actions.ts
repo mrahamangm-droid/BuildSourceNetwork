@@ -19,6 +19,7 @@ import * as delivery from "./services/delivery";
 import * as customers from "./services/customers";
 import * as pricing from "./services/pricing";
 import * as projects from "./services/projects";
+import * as aiBoq from "./services/ai-boq";
 import * as orderStock from "./services/order-stock";
 import * as plans from "./services/plans";
 import * as branches from "./services/branches";
@@ -844,6 +845,51 @@ export async function deleteBoqItemAction(_: ActionState, fd: FormData): Promise
   }
   revalidatePath(`/dashboard/projects/${projectId}`);
   return { ok: true };
+}
+
+export type AiBoqState = ActionState & {
+  lines?: {
+    section: string;
+    description: string;
+    unit: string;
+    quantity: number;
+    wastePercent: number;
+  }[];
+  remaining?: number;
+};
+
+/** Step 1: draft lines from a description. Saves nothing. */
+export async function suggestAiBoqAction(_: AiBoqState, fd: FormData): Promise<AiBoqState> {
+  const projectId = str(fd, "projectId");
+  try {
+    const ctx = await requireCtx();
+    const r = await aiBoq.suggestBoq(ctx, projectId, { description: str(fd, "description") });
+    return { ok: true, lines: r.lines, remaining: r.remaining };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/** Step 2: save the lines the user kept. The list is re-validated on the server. */
+export async function addAiBoqLinesAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const projectId = str(fd, "projectId");
+  try {
+    const ctx = await requireCtx();
+    let lines: unknown;
+    try {
+      lines = JSON.parse(str(fd, "lines") || "[]");
+    } catch {
+      return { error: "Could not read the selected lines. Please draft again." };
+    }
+    const n = await aiBoq.addAiLines(ctx, projectId, { lines });
+    revalidatePath(`/dashboard/projects/${projectId}`);
+    return {
+      ok: true,
+      message: `${n} lines added. Check each quantity and enter your unit rates.`,
+    };
+  } catch (e) {
+    return fail(e);
+  }
 }
 
 export async function starterBoqAction(_: ActionState, fd: FormData): Promise<ActionState> {

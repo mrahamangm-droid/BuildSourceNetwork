@@ -32,9 +32,13 @@ Create two Supabase buckets: a public one for product and logo images (`SUPABASE
 
 Set the variables from `.env.example` in Vercel. After deploy, call `GET /api/health` with `Authorization: Bearer <CRON_SECRET>`; it lists any missing or weak variables (names only). Without the header it returns just `{"ok":true|false}`, suitable for an uptime monitor.
 
+## 5b. Optional: AI BOQ drafting
+
+Set `ANTHROPIC_API_KEY` in Vercel to enable "Draft a bill with AI" on project pages (leave it unset and the card says the feature is not enabled). `ANTHROPIC_MODEL` overrides the default model id. Drafts are capped per 30 days by plan (Free 3, Starter 30, SME 150; see `lib/ai-boq.ts`) and cost real API usage, so set a spend limit in the Anthropic console. Nothing the model returns is saved until the user reviews and confirms it.
+
 ## 6. Smoke test on staging
 
-Register a buyer and a supplier; verify email; post an RFQ with an attachment; quote; accept; receive stock; reserve it on the order; transfer between two warehouses; request a plan and approve it as admin; publish a blog post; check `/sitemap.xml`, `/manufacturers`, `/blog`.
+Register a buyer and a supplier; verify email; post an RFQ with an attachment; quote; accept; receive stock; reserve it on the order; transfer between two warehouses; request a plan and approve it as admin; publish a blog post; check `/sitemap.xml`, `/manufacturers`, `/blog`; with the AI key set, draft a bill from a project description and add two lines.
 
 ## 7. Known limitations
 

@@ -87,7 +87,7 @@ function shapeItem(i: {
   };
 }
 
-async function own(ctx: Ctx, id: string) {
+export async function own(ctx: Ctx, id: string) {
   const p = await db.project.findFirst({ where: { id, orgId: ctx.orgId } });
   if (!p) throw new AppError("Project not found", "NOT_FOUND");
   return p;
@@ -200,7 +200,7 @@ export async function getProject(ctx: Ctx, id: string) {
 }
 
 /** Appends an item, guarded by a per-project cap. Serializable so two tabs cannot exceed it. */
-async function appendItems(
+export async function appendItems(
   ctx: Ctx,
   projectId: string,
   rows: {

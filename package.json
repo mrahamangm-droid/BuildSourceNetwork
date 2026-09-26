@@ -22,6 +22,7 @@
     "db:migrate": "npm run migrate:dev -w @bmn/database",
     "db:deploy": "npm run migrate:deploy -w @bmn/database",
     "db:seed": "npm run seed -w @bmn/database",
+    "db:seed:reference": "npm run seed:reference -w @bmn/database",
     "db:reset": "npm run reset -w @bmn/database"
   },
   "devDependencies": {

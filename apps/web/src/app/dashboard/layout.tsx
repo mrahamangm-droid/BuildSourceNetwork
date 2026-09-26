@@ -5,6 +5,7 @@ import { DashNav } from "@/components/dashboard/nav";
 import { Badge } from "@/components/ui";
 import { VerifyBanner } from "@/components/dashboard/verify-banner";
 import { BUYER_TYPES, ORG_TYPE_LABEL } from "@bmn/config";
+import { cartCount } from "@/server/services/cart";
 
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
@@ -17,6 +18,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   });
   const isSupplier = ctx.orgType === "SUPPLIER";
   const isBuyer = BUYER_TYPES.includes(ctx.orgType);
+  const inCart = isBuyer ? await cartCount(ctx) : 0;
   const items = [
     { href: "/dashboard", label: "Overview" },
     ...(isSupplier || ctx.orgType === "STORE"
@@ -27,7 +29,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
           { href: "/dashboard/customers", label: "Customers" },
         ]
       : []),
-    ...(isBuyer ? [{ href: "/dashboard/projects", label: "Projects & BOQ" }] : []),
+    ...(isBuyer
+      ? [
+          { href: "/dashboard/projects", label: "Projects & BOQ" },
+          { href: "/dashboard/cart", label: inCart ? `Cart (${inCart})` : "Cart" },
+          { href: "/dashboard/lists", label: "Saved lists" },
+        ]
+      : []),
     { href: "/dashboard/rfqs", label: isSupplier ? "RFQ inbox" : "RFQs" },
     { href: "/dashboard/orders", label: "Orders" },
     { href: "/dashboard/deliveries", label: "Deliveries" },

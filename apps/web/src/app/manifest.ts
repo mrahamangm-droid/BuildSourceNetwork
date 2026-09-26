@@ -1,9 +1,10 @@
 import type { MetadataRoute } from "next";
+import { BRAND } from "@/lib/company";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Building Materials Network",
-    short_name: "BMN",
+    name: BRAND.name,
+    short_name: BRAND.short,
     description: "Find suppliers, compare offers and request quotes for building materials.",
     start_url: "/dashboard",
     display: "standalone",
@@ -12,6 +13,7 @@ export default function manifest(): MetadataRoute.Manifest {
     icons: [
       { src: "/icon-192.png", sizes: "192x192", type: "image/png" },
       { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
   };
 }

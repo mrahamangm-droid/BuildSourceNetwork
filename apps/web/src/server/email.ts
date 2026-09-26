@@ -1,4 +1,5 @@
 import { appUrl } from "@/lib/utils";
+import { BRAND, MAIL_FOOTER } from "@/lib/company";
 
 export type Mail = { to: string; subject: string; text: string };
 
@@ -15,10 +16,10 @@ export async function sendMail(mail: Mail): Promise<void> {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: process.env.EMAIL_FROM ?? "Building Materials Network <no-reply@example.com>",
+        from: process.env.EMAIL_FROM ?? `${BRAND.name} <no-reply@example.com>`,
         to: mail.to,
         subject: mail.subject,
-        text: mail.text,
+        text: mail.text + MAIL_FOOTER,
       }),
     });
     if (!res.ok) throw new Error(`Email send failed: ${res.status}`);

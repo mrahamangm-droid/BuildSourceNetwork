@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 64" role="img" aria-label="BuildSource Network">
+<style>.a{fill:#fff}.b{fill:#cbd5e1}</style>
+<rect width="64" height="64" rx="15" fill="#ea580c"/>
+  <path d="M32 11 51 22v20L32 53 13 42V22Z" fill="none" stroke="#fff" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M13 22 32 33 51 22M32 33v20" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="32" cy="33" r="5.2" fill="#fff"/>
+  <circle cx="32" cy="11" r="3.6" fill="#fff"/><circle cx="51" cy="22" r="3.6" fill="#fff"/><circle cx="51" cy="42" r="3.6" fill="#fff"/>
+  <circle cx="32" cy="53" r="3.6" fill="#fff"/><circle cx="13" cy="42" r="3.6" fill="#fff"/><circle cx="13" cy="22" r="3.6" fill="#fff"/>
+<text x="78" y="33" class="a" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="27" font-weight="800" letter-spacing="-0.6">BuildSource</text>
+<text x="79" y="54" class="b" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15.5" font-weight="600" letter-spacing="4.2">NETWORK</text></svg>

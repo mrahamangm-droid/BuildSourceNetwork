@@ -87,7 +87,7 @@ export async function registerAccount(raw: unknown, ip = "unknown") {
   const token = await issueToken(user.id, "EMAIL_VERIFY");
   await sendMail({
     to: user.email,
-    subject: "Verify your email — Building Materials Network",
+    subject: "Verify your email — BuildSource Network",
     text: `Welcome ${user.name}!\n\nConfirm your email: ${verifyUrl(token)}\n\nThe link expires in 48 hours.`,
   }).catch((e) =>
     console.error("[register] verification email failed", e instanceof Error ? e.message : e),

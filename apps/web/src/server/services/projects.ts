@@ -4,6 +4,9 @@ import { assertBuyer, assertCan, type Ctx } from "../ctx";
 import { AppError } from "../errors";
 import { fieldErrorsFrom } from "./accounts";
 import { audit } from "./notify";
+import { isDeliveredStatus, pipeline, supplierSplit } from "@/lib/procurement";
+import { importLinesSchema, parseBoqList } from "@/lib/boq-import";
+import { hit } from "../rate-limit";
 import {
   boqCsv,
   MAX_ITEMS_PER_PROJECT,
@@ -332,4 +335,115 @@ export async function exportCsv(ctx: Ctx, projectId: string) {
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   });
   return { name: p.name, csv: boqCsv(items.map(shapeItem)) };
+}
+
+/**
+ * Procurement trail of one project: the RFQs raised from its BOQ, the quotes they attracted, the
+ * orders that came out of them and how far those have been delivered. Org-scoped.
+ */
+export async function getProcurement(ctx: Ctx, projectId: string) {
+  guard(ctx);
+  await own(ctx, projectId);
+  const [boqLines, rfqs] = await Promise.all([
+    db.boqItem.count({ where: { projectId, orgId: ctx.orgId } }),
+    db.rfq.findMany({
+      where: { projectId, buyerOrgId: ctx.orgId },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      select: {
+        id: true,
+        number: true,
+        title: true,
+        status: true,
+        createdAt: true,
+        _count: { select: { quotes: true } },
+        orders: {
+          select: {
+            id: true,
+            number: true,
+            status: true,
+            totalAmount: true,
+            currency: true,
+            supplierOrg: { select: { id: true, name: true } },
+          },
+        },
+      },
+    }),
+  ]);
+  const orders = rfqs.flatMap((r) =>
+    r.orders.map((o) => ({
+      id: o.id,
+      number: o.number,
+      status: o.status as string,
+      total: Number(o.totalAmount.toString()),
+      currency: o.currency,
+      supplierOrgId: o.supplierOrg.id,
+      supplierName: o.supplierOrg.name,
+      delivered: isDeliveredStatus(o.status),
+    })),
+  );
+  const input = {
+    boqLines,
+    rfqs: rfqs.map((r) => ({ status: r.status as string, quoteCount: r._count.quotes })),
+    orders,
+  };
+  return {
+    stages: pipeline(input),
+    split: supplierSplit(orders),
+    rfqs: rfqs.map((r) => ({
+      id: r.id,
+      number: r.number,
+      title: r.title,
+      status: r.status as string,
+      quoteCount: r._count.quotes,
+      createdAt: r.createdAt,
+    })),
+    orders,
+  };
+}
+
+// ───────────────────────── BOQ / material-list import ─────────────────────────
+
+/** Step 1: read a pasted list or uploaded CSV/TSV/TXT into draft lines. Saves nothing. */
+export async function previewImport(ctx: Ctx, projectId: string, text: string) {
+  guard(ctx);
+  await own(ctx, projectId);
+  const rl = hit(`boq-import:${ctx.userId}`, 20, 60_000);
+  if (!rl.ok)
+    throw new AppError(`Slow down: try again in ${rl.retryAfterSec} seconds.`, "RATE_LIMIT");
+  if (!text.trim())
+    throw new AppError("Paste a list or choose a file first.", "VALIDATION", {
+      text: "Paste a list or choose a file",
+    });
+  const r = parseBoqList(text);
+  if (!r.lines.length)
+    throw new AppError(
+      "We could not find any lines with a quantity. Use columns like Item, Qty, Unit, or lines like “Cement 42.5N - 200 bags”.",
+      "VALIDATION",
+      { text: "No readable lines found" },
+    );
+  return r;
+}
+
+/** Step 2: save the lines the user reviewed. Re-validated on the server; the client is never trusted. */
+export async function addImportedLines(ctx: Ctx, projectId: string, raw: unknown) {
+  guard(ctx);
+  await own(ctx, projectId);
+  const parsed = importLinesSchema.safeParse(raw);
+  if (!parsed.success)
+    throw new AppError(parsed.error.issues[0]?.message ?? "Select at least one line", "VALIDATION");
+  await appendItems(
+    ctx,
+    projectId,
+    parsed.data.map((l) => ({ ...l, unitRate: null })),
+  );
+  await audit({
+    orgId: ctx.orgId,
+    actorId: ctx.userId,
+    action: "boq.imported",
+    entity: "Project",
+    entityId: projectId,
+    meta: { lines: parsed.data.length },
+  });
+  return parsed.data.length;
 }

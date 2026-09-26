@@ -5,6 +5,7 @@ import { Alert, PageHeader } from "@/components/ui";
 import { RfqForm } from "@/components/dashboard/rfq-form";
 import { BUYER_TYPES } from "@bmn/config";
 import { boqLineToRfqItem, MAX_RFQ_LINES } from "@/lib/boq-rfq";
+import { toRfqItems } from "@/lib/reorder";
 
 export const metadata: Metadata = { title: "Request quotes" };
 
@@ -17,6 +18,7 @@ type SP = {
   mode?: string;
   projectId?: string;
   boq?: string | string[];
+  reorder?: string;
 };
 
 export default async function NewRfqPage({ searchParams }: { searchParams: Promise<SP> }) {
@@ -70,25 +72,57 @@ export default async function NewRfqPage({ searchParams }: { searchParams: Promi
           },
         })
       : null;
-  const initialItems = project?.items.map((i) =>
-    boqLineToRfqItem(
-      {
-        section: i.section,
-        description: i.description,
-        unit: i.unit,
-        quantity: Number(i.quantity.toString()),
-        wastePercent: Number(i.wastePercent.toString()),
-      },
-      { projectName: project.name, categories, unitCodes: units.map((u) => u.code) },
-    ),
-  );
+  // "Buy again": copy the lines of one of this company's own past orders.
+  const past = sp.reorder
+    ? await db.order.findFirst({
+        where: { id: sp.reorder, buyerOrgId: authed.orgId },
+        select: {
+          number: true,
+          deliveryCity: true,
+          items: { select: { name: true, productId: true, quantity: true, unitCode: true } },
+        },
+      })
+    : null;
+  const pastCats = past?.items.some((i) => i.productId)
+    ? await db.product.findMany({
+        where: { id: { in: past.items.map((i) => i.productId).filter((x): x is string => !!x) } },
+        select: { id: true, categoryId: true },
+      })
+    : [];
+  const reorderItems = past
+    ? toRfqItems(
+        past.items.map((i) => ({ ...i, quantity: Number(i.quantity.toString()) })),
+        new Map(pastCats.map((p) => [p.id, p.categoryId])),
+      )
+    : undefined;
+  const initialItems =
+    reorderItems ??
+    project?.items.map((i) =>
+      boqLineToRfqItem(
+        {
+          section: i.section,
+          description: i.description,
+          unit: i.unit,
+          quantity: Number(i.quantity.toString()),
+          wastePercent: Number(i.wastePercent.toString()),
+        },
+        { projectName: project.name, categories, unitCodes: units.map((u) => u.code) },
+      ),
+    );
   return (
     <div className="max-w-3xl">
       <PageHeader
         title="Request quotes"
         description="Tell us what you need. Matching suppliers reply with prices you can compare side by side."
       />
-      {project ? (
+      {past ? (
+        <Alert>
+          {past.items.length} line{past.items.length === 1 ? "" : "s"} copied from order{" "}
+          <strong>{past.number}</strong>. Adjust quantities and specifications before sending;
+          prices will be quoted fresh.
+        </Alert>
+      ) : null}
+      {project && !past ? (
         <Alert>
           {initialItems?.length ?? 0} line{initialItems?.length === 1 ? "" : "s"} copied from the
           BOQ of <strong>{project.name}</strong>, using order quantities (waste included). Remove
@@ -106,8 +140,15 @@ export default async function NewRfqPage({ searchParams }: { searchParams: Promi
           unitCode: product?.unitCode ?? "",
         }}
         initialItems={initialItems}
-        initialTitle={project ? `${project.name} materials`.slice(0, 120) : undefined}
-        initialCity={sp.city ?? project?.city ?? ""}
+        initialTitle={
+          past
+            ? `Reorder of ${past.number}`
+            : project
+              ? `${project.name} materials`.slice(0, 120)
+              : undefined
+        }
+        initialCity={sp.city ?? past?.deliveryCity ?? project?.city ?? ""}
+        projectId={project && !past ? sp.projectId : undefined}
         defaultCity={org.city ?? ""}
         supplierOrgId={supplier?.id}
         supplierName={supplier?.name}

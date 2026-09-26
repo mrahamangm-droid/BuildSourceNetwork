@@ -11,6 +11,8 @@ import { RfqAttachments } from "@/components/dashboard/rfq-attachments";
 import { listAttachments } from "@/server/services/rfq-attachments";
 import { formatDate, formatMoney, formatQty } from "@/lib/utils";
 import { BUYER_TYPES } from "@bmn/config";
+import { bestValueId, coverageOf, valueScores, type CompareQuote } from "@/lib/compare";
+import { chainRoleLabel } from "@/lib/supply-chain";
 
 export const metadata: Metadata = { title: "RFQ" };
 
@@ -159,6 +161,34 @@ export default async function RfqDetailPage({
     .filter((q) => q.deliveryDays != null && (q.status === "SUBMITTED" || q.status === "ACCEPTED"))
     .sort((a, b) => (a.deliveryDays ?? 99) - (b.deliveryDays ?? 99))[0]?.id;
 
+  const city = rfq.deliveryCity.trim().toLowerCase();
+  const compareInput: CompareQuote[] = quotes
+    .filter((q) => q.status === "SUBMITTED" || q.status === "ACCEPTED")
+    .map((q) => ({
+      id: q.id,
+      total: Number(q.totalAmount),
+      deliveryDays: q.deliveryDays,
+      coverage: coverageOf(
+        rfq.items.map((it) => ({
+          requested: Number(it.quantity),
+          available: (() => {
+            const qi = q.items.find((x) => x.rfqItemId === it.id);
+            return qi ? Number(qi.quantityAvailable) : null;
+          })(),
+        })),
+      ),
+      verified: q.supplierOrg.verificationStatus === "VERIFIED",
+      sameCity: (q.supplierOrg.city ?? "").trim().toLowerCase() === city,
+    }));
+  const bestValue = bestValueId(compareInput);
+  const scores = valueScores(compareInput);
+  const partialItems = rfq.items.filter((it) =>
+    quotes.some((q) => {
+      const qi = q.items.find((x) => x.rfqItemId === it.id);
+      return !qi || Number(qi.quantityAvailable) < Number(it.quantity);
+    }),
+  );
+
   return (
     <div>
       <PageHeader
@@ -246,13 +276,22 @@ export default async function RfqDetailPage({
         </Card>
       </div>
 
-      <h2 className="mb-3 mt-8 text-lg font-semibold">Compare quotes</h2>
+      <h2 className="mb-1 mt-8 text-lg font-semibold">Compare quotes</h2>
+      {quotes.length > 1 ? (
+        <p className="mb-3 text-xs text-muted">
+          Best value weighs total price (45%), delivery time (20%), how much of your quantity the
+          supplier can supply (20%), verification (10%) and being in your delivery city (5%). It is
+          a guide: you decide.
+        </p>
+      ) : (
+        <div className="mb-3" />
+      )}
       {quotes.length ? (
         <div className="overflow-x-auto rounded-xl border border-line">
           <table className="w-full min-w-[820px] text-left text-sm">
             <thead className="bg-surface text-xs uppercase text-muted">
               <tr>
-                <th className="px-4 py-3">Supplier</th>
+                <th className="px-4 py-3">Supplier &amp; location</th>
                 <th className="px-4 py-3">Price</th>
                 <th className="px-4 py-3">Availability</th>
                 <th className="px-4 py-3">Delivery</th>
@@ -280,8 +319,20 @@ export default async function RfqDetailPage({
                       >
                         {q.supplierOrg.name}
                       </Link>
-                      <p className="text-xs text-muted">{q.supplierOrg.city}</p>
-                      <DemoBadge show={q.supplierOrg.isDemo} />
+                      <p className="text-xs text-muted">
+                        {chainRoleLabel(q.supplierOrg)}
+                        {q.supplierOrg.city ? ` · ${q.supplierOrg.city}` : ""}
+                      </p>
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {q.id === bestValue ? <Badge tone="green">Best value</Badge> : null}
+                        {(q.supplierOrg.city ?? "").trim().toLowerCase() === city ? (
+                          <Badge tone="blue">In {rfq.deliveryCity}</Badge>
+                        ) : null}
+                        <DemoBadge show={q.supplierOrg.isDemo} />
+                      </div>
+                      {scores.has(q.id) && quotes.length > 1 ? (
+                        <p className="mt-1 text-xs text-muted">Score {scores.get(q.id)}/100</p>
+                      ) : null}
                     </td>
                     <td className="px-4 py-3">
                       <p className="text-base font-bold">
@@ -377,6 +428,27 @@ export default async function RfqDetailPage({
           No quotes yet. Suppliers usually respond within a day — we will notify you as they arrive.
         </Alert>
       )}
+      {partialItems.length ? (
+        <Card className="mt-4 text-sm">
+          <p className="font-semibold">Short on an item? See alternatives</p>
+          <p className="mt-1 text-muted">
+            Some suppliers cannot cover the full quantity of these items. Smart matching finds
+            comparable products from other suppliers.
+          </p>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {partialItems.slice(0, 8).map((it) => (
+              <li key={it.id}>
+                <Link
+                  className="inline-block rounded-full border border-line px-3 py-1 text-brand-700 hover:bg-brand-50"
+                  href={`/match?q=${encodeURIComponent(it.name)}&city=${encodeURIComponent(rfq.deliveryCity)}&qty=${Number(it.quantity)}`}
+                >
+                  {it.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
     </div>
   );
 }

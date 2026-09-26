@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { requireCtx } from "@/server/access";
 import { advanceOrderAction } from "@/server/actions";
 import { allowedTransitions, getOrder } from "@/server/services/orders";
-import { Alert, Badge, Button, Card, PageHeader } from "@/components/ui";
+import { Alert, Badge, Button, Card, LinkButton, PageHeader } from "@/components/ui";
 import { ReviewForm } from "@/components/dashboard/review-form";
 import { DeliveryPanel } from "@/components/dashboard/delivery-panel";
 import { OrderStockPanel } from "@/components/dashboard/order-stock-panel";
@@ -72,6 +72,28 @@ export default async function OrderPage({
         <div className="mb-4">
           <Alert tone="error">{sp.error}</Alert>
         </div>
+      ) : null}
+
+      {isBuyer && order.status !== "CANCELLED" ? (
+        <Card className="mb-4 flex flex-wrap items-center justify-between gap-3 text-sm">
+          <p className="text-muted">Need the same materials again?</p>
+          <div className="flex flex-wrap gap-2">
+            <LinkButton
+              href={`/dashboard/rfqs/new?reorder=${order.id}`}
+              size="sm"
+              variant="outline"
+            >
+              Reorder: get new quotes
+            </LinkButton>
+            <LinkButton
+              href={`/dashboard/rfqs/new?reorder=${order.id}&supplier=${order.supplierOrg.id}&mode=custom`}
+              size="sm"
+              variant="ghost"
+            >
+              Reorder from {order.supplierOrg.name}
+            </LinkButton>
+          </div>
+        </Card>
       ) : null}
 
       <Card className="mb-4">

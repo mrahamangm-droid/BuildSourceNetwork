@@ -507,6 +507,7 @@ export async function getPublicProduct(id: string) {
       brand: true,
       manufacturer: true,
       images: { orderBy: { sortOrder: "asc" } },
+      documents: { orderBy: { createdAt: "asc" } },
       priceBreaks: { orderBy: { minQty: "asc" } },
       org: {
         select: {

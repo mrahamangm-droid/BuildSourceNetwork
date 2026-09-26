@@ -225,7 +225,13 @@ export default async function OrderPage({
 
       {stock ? (
         <div className="mt-6">
-          <OrderStockPanel orderId={order.id} canReserve={stock.canReserve} lines={stock.lines} products={stock.products} />
+          <OrderStockPanel
+            orderId={order.id}
+            canReserve={stock.canReserve}
+            lines={stock.lines}
+            products={stock.products}
+            warehouses={stock.warehouses}
+          />
         </div>
       ) : null}
 

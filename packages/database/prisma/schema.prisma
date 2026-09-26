@@ -283,11 +283,26 @@ model ProductType {
   @@unique([subcategoryId, slug])
 }
 
+model Manufacturer {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  name        String
+  country     String?
+  website     String?
+  description String?
+  brands      Brand[]
+  products    Product[]
+}
+
 model Brand {
-  id       String    @id @default(cuid())
-  slug     String    @unique
-  name     String
-  products Product[]
+  id             String        @id @default(cuid())
+  slug           String        @unique
+  name           String
+  manufacturerId String?
+  manufacturer   Manufacturer? @relation(fields: [manufacturerId], references: [id], onDelete: SetNull)
+  products       Product[]
+
+  @@index([manufacturerId])
 }
 
 // Units are rows, not enum values, so new units and conversions need no migration.
@@ -310,6 +325,7 @@ model Product {
   subcategoryId    String?
   productTypeId    String?
   brandId          String?
+  manufacturerId   String?
   unitCode         String
   sku              String?
   name             String
@@ -317,6 +333,14 @@ model Product {
   description      String?
   specifications   Json?
   packageSize      String?
+  material         String?
+  grade            String?
+  size             String?
+  dimensions       String?
+  color            String?
+  finish           String?
+  application      String?
+  countryOfOrigin  String?
   minOrderQty      Decimal      @default(1) @db.Decimal(14, 3)
   stockStatus      StockStatus  @default(IN_STOCK)
   price            Decimal      @db.Decimal(14, 2)
@@ -336,6 +360,7 @@ model Product {
   subcategory Subcategory? @relation(fields: [subcategoryId], references: [id], onDelete: SetNull)
   productType ProductType? @relation(fields: [productTypeId], references: [id], onDelete: SetNull)
   brand    Brand?         @relation(fields: [brandId], references: [id])
+  manufacturer Manufacturer? @relation(fields: [manufacturerId], references: [id], onDelete: SetNull)
   unit     Unit           @relation(fields: [unitCode], references: [code])
   images   ProductImage[]
   prices   PriceHistory[]
@@ -350,6 +375,7 @@ model Product {
   @@index([categoryId, isActive])
   @@index([subcategoryId, isActive])
   @@index([productTypeId, isActive])
+  @@index([manufacturerId, isActive])
   @@index([orgId, isActive])
   @@index([city])
   @@index([name])

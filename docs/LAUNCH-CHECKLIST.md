@@ -22,7 +22,7 @@ Commit the formatting result as its own commit.
 
 ## 3. Database
 
-`npx prisma migrate deploy` applies, in order, everything up to `20261006000000_blog`. Do not run the demo seed in production. Create the first platform admin by registering normally, then setting `isPlatformAdmin` on that user in the database.
+Production builds on Vercel run `prisma migrate deploy` automatically (see `vercel.json`; previews skip it, and a failed migration fails the build so a bad schema never goes live). To run it by hand, `npx prisma migrate deploy` applies, in order, everything up to `20261006000000_blog`. Do not run the demo seed in production. Create the first platform admin by registering normally, then setting `isPlatformAdmin` on that user in the database.
 
 ## 4. Storage
 
@@ -30,7 +30,7 @@ Create two Supabase buckets: a public one for product and logo images (`SUPABASE
 
 ## 5. Environment and health
 
-Set the variables from `.env.example` in Vercel. After deploy, call `GET /api/health` with `Authorization: Bearer <CRON_SECRET>`; it lists any missing or weak variables (names only). Without the header it returns just `{"ok":true|false}`, suitable for an uptime monitor.
+Set the variables from `.env.example` in Vercel. If a Vercel storage integration added the database under a prefixed name such as `myproject_DATABASE_URL`, the app finds it automatically; a plain `DATABASE_URL` is not required. After deploy, call `GET /api/health` with `Authorization: Bearer <CRON_SECRET>`; it lists any missing or weak variables (names only). Without the header it returns just `{"ok":true|false}`, suitable for an uptime monitor.
 
 ## 5b. Optional: AI BOQ drafting
 

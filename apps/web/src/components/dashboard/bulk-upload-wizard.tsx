@@ -32,6 +32,13 @@ function downloadTemplate() {
   a.click();
 }
 
+function downloadCatalogue() {
+  const a = document.createElement("a");
+  a.href = "/api/imports/export";
+  a.download = "bsn-catalogue-for-update.xlsx";
+  a.click();
+}
+
 async function call(url: string, body: unknown) {
   const res = await fetch(url, {
     method: "POST",
@@ -211,6 +218,19 @@ export function BulkUploadWizard() {
           quantities like 1,000,000 are understood. Start from our template to get drop-downs for
           category, subcategory, product type and unit.
         </p>
+        {mode === "UPDATE" ? (
+          <p className="mt-2 text-sm text-muted">
+            For quick price, stock or MOQ changes, download your catalogue, edit the cells and
+            upload it back here. Only the columns you keep are changed.{" "}
+            <button
+              type="button"
+              className="font-medium text-brand-700 hover:underline"
+              onClick={downloadCatalogue}
+            >
+              Download my catalogue (.xlsx)
+            </button>
+          </p>
+        ) : null}
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <Button variant="outline" onClick={() => downloadTemplate()}>
             Download Excel template

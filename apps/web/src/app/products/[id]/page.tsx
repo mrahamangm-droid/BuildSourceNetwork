@@ -101,17 +101,38 @@ export default async function ProductPage({
         ]}
       />
       <div className="grid gap-8 md:grid-cols-2">
-        <div className="aspect-square overflow-hidden rounded-xl border border-line bg-surface">
-          {p.images[0] ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={p.images[0].url}
-              alt={p.images[0].alt ?? p.name}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="grid h-full place-items-center text-muted">No image</div>
-          )}
+        <div>
+          <div className="aspect-square overflow-hidden rounded-xl border border-line bg-surface">
+            {p.images[0] ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={p.images[0].url}
+                alt={p.images[0].alt ?? p.name}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="grid h-full place-items-center text-muted">No image</div>
+            )}
+          </div>
+          {p.images.length > 1 ? (
+            <ul className="mt-2 flex gap-2 overflow-x-auto">
+              {p.images.slice(1).map((im) => (
+                <li
+                  key={im.id}
+                  className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-line"
+                >
+                  <a href={im.url} target="_blank" rel="noopener noreferrer">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={im.url}
+                      alt={im.alt ?? p.name}
+                      className="h-full w-full object-cover"
+                    />
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
         <div>
           <div className="flex flex-wrap gap-1">
@@ -255,6 +276,36 @@ export default async function ProductPage({
               </div>
             ))}
           </dl>
+        </section>
+      ) : null}
+      {p.documents.length ? (
+        <section className="mt-8">
+          <h2 className="text-lg font-semibold">Documents</h2>
+          <ul className="mt-2 divide-y divide-line rounded-xl border border-line text-sm">
+            {p.documents.map((d) => (
+              <li key={d.id} className="flex items-center justify-between gap-3 px-4 py-2">
+                <a
+                  href={d.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-brand-700 hover:underline"
+                >
+                  {d.name}
+                </a>
+                <span className="text-xs text-muted">
+                  {d.kind === "MSDS"
+                    ? "Safety data sheet"
+                    : d.kind === "CERTIFICATE"
+                      ? "Certificate"
+                      : d.kind === "DATASHEET"
+                        ? "Datasheet"
+                        : "Document"}{" "}
+                  · PDF
+                  {d.sizeBytes ? ` · ${Math.max(1, Math.round(d.sizeBytes / 1024))} KB` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
         </section>
       ) : null}
       <ProductReviews

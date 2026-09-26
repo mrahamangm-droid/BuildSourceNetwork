@@ -29,6 +29,9 @@ export default async function ProductsPage({
             <LinkButton href="/dashboard/products/bulk" variant="outline">
               Bulk upload (Excel/CSV)
             </LinkButton>
+            <LinkButton href="/dashboard/products/media" variant="outline">
+              Bulk photos
+            </LinkButton>
             <LinkButton href="/dashboard/products/import" variant="outline">
               Quick paste import
             </LinkButton>

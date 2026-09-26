@@ -12,6 +12,12 @@ datasource db {
   provider = "postgresql"
 }
 
+enum SupplierKind {
+  MANUFACTURER
+  DISTRIBUTOR
+  WHOLESALER
+}
+
 enum OrgType {
   SUPPLIER
   STORE
@@ -145,6 +151,11 @@ model Organization {
   currency           String             @default("AED")
   businessHours      String?
   deliveryAreas      String[]
+  supplierKind       SupplierKind?
+  leadTimeDays       Int?
+  minOrderNote       String?
+  capacityNote       String?
+  certifications     String[]
   verificationStatus VerificationStatus @default(UNVERIFIED)
   isActive           Boolean            @default(true)
   isDemo             Boolean            @default(false)
@@ -161,6 +172,7 @@ model Organization {
   customers            Customer[]
   invoices             Invoice[]
   projects Project[]
+  planRequests PlanRequest[]
   boqItems BoqItem[]
   customerPayments     CustomerPayment[]
   stockMovements       StockMovement[]
@@ -284,6 +296,7 @@ model Product {
   rfqItems RfqItem[]
   inventory InventoryItem[]
   movements StockMovement[]
+  orderItems OrderItem[]
 
   @@unique([orgId, slug])
   @@unique([orgId, sku])
@@ -351,6 +364,7 @@ model Rfq {
   recipients RfqRecipient[]
   quotes     Quote[]
   orders     Order[]
+  attachments RfqAttachment[]
 
   @@index([buyerOrgId, status])
   @@index([status, expiresAt])
@@ -463,6 +477,13 @@ model Order {
   @@index([supplierOrgId, status])
 }
 
+enum OrderStockState {
+  NONE
+  RESERVED
+  ISSUED
+  RELEASED
+}
+
 model OrderItem {
   id        String  @id @default(cuid())
   orderId   String
@@ -471,10 +492,16 @@ model OrderItem {
   unitCode  String
   unitPrice Decimal @db.Decimal(14, 2)
   lineTotal Decimal @db.Decimal(14, 2)
+  // Supplier-side stock link. The state makes reserve/issue/release idempotent per line.
+  productId        String?
+  stockWarehouseId String?
+  stockState       OrderStockState @default(NONE)
   order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   unit      Unit    @relation(fields: [unitCode], references: [code])
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
 
   @@index([orderId])
+  @@index([productId])
 }
 
 model OrderEvent {
@@ -567,6 +594,7 @@ model SubscriptionPlan {
   features          String[]
   isActive          Boolean        @default(true)
   subscriptions     Subscription[]
+  requests          PlanRequest[]
 }
 
 model Subscription {
@@ -794,4 +822,46 @@ model BoqItem {
 
   @@index([projectId, sortOrder])
   @@index([orgId])
+}
+
+enum PlanRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// A company asks for a paid plan; a platform admin activates it manually until online billing exists.
+model PlanRequest {
+  id            String            @id @default(cuid())
+  orgId         String
+  requestedById String
+  planCode      String
+  note          String?
+  status        PlanRequestStatus @default(PENDING)
+  reviewNote    String?
+  reviewedById  String?
+  reviewedAt    DateTime?
+  createdAt     DateTime          @default(now())
+
+  org  Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  plan SubscriptionPlan @relation(fields: [planCode], references: [code])
+
+  @@index([status, createdAt])
+  @@index([orgId, createdAt])
+}
+
+/// Private files (drawings, specs) attached to an RFQ. Served only through an authorized route.
+model RfqAttachment {
+  id           String   @id @default(cuid())
+  rfqId        String
+  uploadedById String
+  filename     String
+  contentType  String
+  sizeBytes    Int
+  storageKey   String   @unique
+  createdAt    DateTime @default(now())
+
+  rfq Rfq @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+
+  @@index([rfqId])
 }

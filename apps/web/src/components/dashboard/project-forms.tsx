@@ -173,7 +173,17 @@ export function BoqRow({
   return (
     <tr className="align-top">
       <td className="px-3 py-2">
-        <p>{item.description}</p>
+        <label className="flex items-start gap-2">
+          <input
+            type="checkbox"
+            name="boq"
+            value={item.id}
+            form="boq-rfq"
+            aria-label={`Include ${item.description} in a quote request`}
+            className="mt-1"
+          />
+          <span>{item.description}</span>
+        </label>
         <p className="text-xs text-muted">
           {item.unit} · order {orderQty}
         </p>

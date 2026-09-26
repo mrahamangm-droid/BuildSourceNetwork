@@ -4,6 +4,7 @@ import { requireCtx } from "@/server/access";
 import { Alert, PageHeader } from "@/components/ui";
 import { RfqForm } from "@/components/dashboard/rfq-form";
 import { BUYER_TYPES } from "@bmn/config";
+import { boqLineToRfqItem, MAX_RFQ_LINES } from "@/lib/boq-rfq";
 
 export const metadata: Metadata = { title: "Request quotes" };
 
@@ -14,6 +15,8 @@ type SP = {
   material?: string;
   supplier?: string;
   mode?: string;
+  projectId?: string;
+  boq?: string | string[];
 };
 
 export default async function NewRfqPage({ searchParams }: { searchParams: Promise<SP> }) {
@@ -50,12 +53,48 @@ export default async function NewRfqPage({ searchParams }: { searchParams: Promi
     db.organization.findUniqueOrThrow({ where: { id: authed.orgId }, select: { city: true } }),
   ]);
   const cat = sp.category ? categories.find((c) => c.slug === sp.category) : undefined;
+
+  // Lines picked on a project's BOQ page. Org-scoped: another company's ids simply match nothing.
+  const boqIds = (Array.isArray(sp.boq) ? sp.boq : sp.boq ? [sp.boq] : []).slice(0, MAX_RFQ_LINES);
+  const project =
+    sp.projectId && boqIds.length
+      ? await db.project.findFirst({
+          where: { id: sp.projectId, orgId: authed.orgId },
+          select: {
+            name: true,
+            city: true,
+            items: {
+              where: { id: { in: boqIds }, orgId: authed.orgId },
+              orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+            },
+          },
+        })
+      : null;
+  const initialItems = project?.items.map((i) =>
+    boqLineToRfqItem(
+      {
+        section: i.section,
+        description: i.description,
+        unit: i.unit,
+        quantity: Number(i.quantity.toString()),
+        wastePercent: Number(i.wastePercent.toString()),
+      },
+      { projectName: project.name, categories, unitCodes: units.map((u) => u.code) },
+    ),
+  );
   return (
     <div className="max-w-3xl">
       <PageHeader
         title="Request quotes"
         description="Tell us what you need. Matching suppliers reply with prices you can compare side by side."
       />
+      {project ? (
+        <Alert>
+          {initialItems?.length ?? 0} line{initialItems?.length === 1 ? "" : "s"} copied from the BOQ of{" "}
+          <strong>{project.name}</strong>, using order quantities (waste included). Remove works items such as
+          excavation or formwork, and check every category and unit before sending.
+        </Alert>
+      ) : null}
       <RfqForm
         categories={categories}
         units={units}
@@ -65,7 +104,9 @@ export default async function NewRfqPage({ searchParams }: { searchParams: Promi
           productId: product?.id ?? "",
           unitCode: product?.unitCode ?? "",
         }}
-        initialCity={sp.city ?? ""}
+        initialItems={initialItems}
+        initialTitle={project ? `${project.name} materials`.slice(0, 120) : undefined}
+        initialCity={sp.city ?? project?.city ?? ""}
         defaultCity={org.city ?? ""}
         supplierOrgId={supplier?.id}
         supplierName={supplier?.name}

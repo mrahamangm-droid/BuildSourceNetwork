@@ -5,6 +5,8 @@ import { assertCan } from "../ctx";
 import { AppError } from "../errors";
 import { fieldErrorsFrom } from "./accounts";
 import { audit } from "./notify";
+import { parseCertifications, parseKind, parseLeadTime } from "@/lib/manufacturer";
+import type { SupplierKind } from "@bmn/config";
 
 const optionalUrl = z
   .string()
@@ -25,6 +27,12 @@ export const orgProfileSchema = z.object({
   categoryIds: z.array(z.string()).optional().default([]),
   logoUrl: optionalUrl.optional(),
   coverUrl: optionalUrl.optional(),
+  // Supplier-only fields (ignored for other org types)
+  supplierKind: z.string().optional().default(""),
+  leadTimeDays: z.string().trim().optional().default(""),
+  minOrderNote: z.string().trim().max(200).optional().default(""),
+  capacityNote: z.string().trim().max(300).optional().default(""),
+  certifications: z.string().trim().max(600).optional().default(""),
 });
 
 export async function updateOrgProfile(ctx: Ctx, raw: unknown) {
@@ -37,6 +45,12 @@ export async function updateOrgProfile(ctx: Ctx, raw: unknown) {
       fieldErrorsFrom(parsed.error),
     );
   const d = parsed.data;
+  const leadTime = parseLeadTime(d.leadTimeDays);
+  if (leadTime === undefined)
+    throw new AppError("Please fix the highlighted fields.", "VALIDATION", {
+      leadTimeDays: "Enter whole days between 0 and 365",
+    });
+  const isSupplier = ctx.orgType === "SUPPLIER";
   const cats = d.categoryIds.length
     ? await db.category.findMany({ where: { id: { in: d.categoryIds } }, select: { id: true } })
     : [];
@@ -57,6 +71,15 @@ export async function updateOrgProfile(ctx: Ctx, raw: unknown) {
         .map((s) => s.trim())
         .filter(Boolean),
       categories: { set: cats.map((c) => ({ id: c.id })) },
+      ...(isSupplier
+        ? {
+            supplierKind: parseKind(d.supplierKind),
+            leadTimeDays: leadTime,
+            minOrderNote: d.minOrderNote || null,
+            capacityNote: d.capacityNote || null,
+            certifications: parseCertifications(d.certifications),
+          }
+        : {}),
       ...(d.logoUrl !== undefined ? { logoUrl: d.logoUrl || null } : {}),
       ...(d.coverUrl !== undefined ? { coverUrl: d.coverUrl || null } : {}),
     },
@@ -109,6 +132,11 @@ const PUBLIC_ORG_SELECT = {
   city: true,
   businessHours: true,
   deliveryAreas: true,
+  supplierKind: true,
+  leadTimeDays: true,
+  minOrderNote: true,
+  capacityNote: true,
+  certifications: true,
   verificationStatus: true,
   isDemo: true,
   createdAt: true,
@@ -119,6 +147,7 @@ export async function listPublicOrgs(opts: {
   type: "SUPPLIER" | "STORE";
   city?: string;
   categorySlug?: string;
+  kind?: SupplierKind;
   q?: string;
   page?: number;
   pageSize?: number;
@@ -129,6 +158,7 @@ export async function listPublicOrgs(opts: {
     type: opts.type,
     isActive: true,
     ...(opts.city ? { city: { equals: opts.city, mode: "insensitive" as const } } : {}),
+    ...(opts.kind ? { supplierKind: opts.kind } : {}),
     ...(opts.categorySlug ? { categories: { some: { slug: opts.categorySlug } } } : {}),
     ...(opts.q ? { name: { contains: opts.q, mode: "insensitive" as const } } : {}),
   };

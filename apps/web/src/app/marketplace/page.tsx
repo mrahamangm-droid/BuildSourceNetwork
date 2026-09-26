@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { db } from "@bmn/database";
+import { db, type Prisma } from "@bmn/database";
 import { Button, EmptyState, Input, Select, Label, LinkButton } from "@/components/ui";
 import { Breadcrumbs, Pagination, ProductCard, SearchBox } from "@/components/market/parts";
 import { CategoryFilterSelect } from "@/components/market/category-filter-select";
@@ -26,47 +26,81 @@ export async function generateMetadata({
   };
 }
 
+/** Structured product attributes offered as filters (only when at least one product has a value). */
+const ATTRIBUTE_FILTERS = [
+  { key: "material", param: "material", label: "Material" },
+  { key: "grade", param: "grade", label: "Grade / class" },
+  { key: "color", param: "color", label: "Colour" },
+  { key: "finish", param: "finish", label: "Finish" },
+  { key: "application", param: "application", label: "Application" },
+] as const;
+
+/** Distinct values of one attribute across active products, for filter dropdowns. */
+async function distinctValues(
+  key: "material" | "grade" | "color" | "finish" | "application",
+): Promise<string[]> {
+  const rows = await db.product.findMany({
+    where: { isActive: true, [key]: { not: null } } as Prisma.ProductWhereInput,
+    distinct: [key],
+    select: { [key]: true } as Prisma.ProductSelect,
+    orderBy: { [key]: "asc" } as Prisma.ProductOrderByWithRelationInput,
+    take: 100,
+  });
+  return rows.map((r) => (r as Record<string, string | null>)[key]).filter((v): v is string => !!v);
+}
+
 const num = (v?: string) =>
   v && !Number.isNaN(Number(v)) && Number(v) >= 0 ? Number(v) : undefined;
 
 async function getFilterOptions(categorySlug?: string, subcategorySlug?: string) {
-  const [categories, subcategories, types, brands, suppliers, cities] = await Promise.all([
-    db.category.findMany({
-      orderBy: { sortOrder: "asc" },
-      select: { slug: true, name: true, department: { select: { name: true } } },
-    }),
-    categorySlug
-      ? db.subcategory.findMany({
-          where: { category: { slug: categorySlug } },
-          orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-          select: { slug: true, name: true },
-        })
-      : Promise.resolve([]),
-    categorySlug && subcategorySlug
-      ? db.productType.findMany({
-          where: { subcategory: { slug: subcategorySlug, category: { slug: categorySlug } } },
-          orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-          select: { slug: true, name: true },
-        })
-      : Promise.resolve([]),
-    db.brand.findMany({
-      where: { products: { some: { isActive: true } } },
-      orderBy: { name: "asc" },
-      select: { slug: true, name: true },
-    }),
-    db.organization.findMany({
-      where: { isActive: true, products: { some: { isActive: true } } },
-      orderBy: { name: "asc" },
-      take: 100,
-      select: { slug: true, name: true },
-    }),
-    db.product.findMany({
-      where: { isActive: true, city: { not: null } },
-      distinct: ["city"],
-      select: { city: true },
-      orderBy: { city: "asc" },
-    }),
-  ]);
+  const [categories, subcategories, types, brands, suppliers, cities, manufacturers, ...attrs] =
+    await Promise.all([
+      db.category.findMany({
+        orderBy: { sortOrder: "asc" },
+        select: { slug: true, name: true, department: { select: { name: true } } },
+      }),
+      categorySlug
+        ? db.subcategory.findMany({
+            where: { category: { slug: categorySlug } },
+            orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+            select: { slug: true, name: true },
+          })
+        : Promise.resolve([]),
+      categorySlug && subcategorySlug
+        ? db.productType.findMany({
+            where: { subcategory: { slug: subcategorySlug, category: { slug: categorySlug } } },
+            orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+            select: { slug: true, name: true },
+          })
+        : Promise.resolve([]),
+      db.brand.findMany({
+        where: { products: { some: { isActive: true } } },
+        orderBy: { name: "asc" },
+        select: { slug: true, name: true },
+      }),
+      db.organization.findMany({
+        where: { isActive: true, products: { some: { isActive: true } } },
+        orderBy: { name: "asc" },
+        take: 100,
+        select: { slug: true, name: true },
+      }),
+      db.product.findMany({
+        where: { isActive: true, city: { not: null } },
+        distinct: ["city"],
+        select: { city: true },
+        orderBy: { city: "asc" },
+      }),
+      db.manufacturer.findMany({
+        where: { products: { some: { isActive: true } } },
+        orderBy: { name: "asc" },
+        select: { slug: true, name: true },
+      }),
+      distinctValues("material"),
+      distinctValues("grade"),
+      distinctValues("color"),
+      distinctValues("finish"),
+      distinctValues("application"),
+    ]);
   const groups = new Map<string, { slug: string; name: string }[]>();
   for (const c of categories) {
     const key = c.department?.name ?? "Other";
@@ -79,6 +113,10 @@ async function getFilterOptions(categorySlug?: string, subcategorySlug?: string)
     brands,
     suppliers,
     cities: cities.map((c) => c.city!).filter(Boolean),
+    manufacturers,
+    attributes: ATTRIBUTE_FILTERS.map((f, i) => ({ ...f, values: attrs[i] })).filter(
+      (f) => f.values.length,
+    ),
   };
 }
 
@@ -90,6 +128,12 @@ export default async function MarketplacePage({ searchParams }: { searchParams: 
     subcategory: sp.category ? sp.sub || undefined : undefined,
     productType: sp.category && sp.sub ? sp.type || undefined : undefined,
     brand: sp.brand || undefined,
+    manufacturer: sp.manufacturer || undefined,
+    material: sp.material || undefined,
+    grade: sp.grade || undefined,
+    color: sp.color || undefined,
+    finish: sp.finish || undefined,
+    application: sp.application || undefined,
     supplier: sp.supplier || undefined,
     city: sp.city || undefined,
     verifiedOnly: sp.verified === "1",
@@ -177,6 +221,37 @@ export default async function MarketplacePage({ searchParams }: { searchParams: 
               ))}
             </Select>
           </div>
+          {opts.manufacturers.length ? (
+            <div>
+              <Label htmlFor="manufacturer">Manufacturer</Label>
+              <Select id="manufacturer" name="manufacturer" defaultValue={sp.manufacturer ?? ""}>
+                <option value="">All manufacturers</option>
+                {opts.manufacturers.map((m) => (
+                  <option key={m.slug} value={m.slug}>
+                    {m.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          ) : null}
+          {opts.attributes.length ? (
+            <details className="space-y-3" open={opts.attributes.some((a) => !!sp[a.param])}>
+              <summary className="cursor-pointer font-medium">Material, colour and more</summary>
+              {opts.attributes.map((a) => (
+                <div key={a.key} className="mt-3">
+                  <Label htmlFor={a.param}>{a.label}</Label>
+                  <Select id={a.param} name={a.param} defaultValue={sp[a.param] ?? ""}>
+                    <option value="">Any</option>
+                    {a.values.map((v) => (
+                      <option key={v} value={v}>
+                        {v}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              ))}
+            </details>
+          ) : null}
           <div>
             <Label htmlFor="supplier">Supplier</Label>
             <Select id="supplier" name="supplier" defaultValue={sp.supplier ?? ""}>

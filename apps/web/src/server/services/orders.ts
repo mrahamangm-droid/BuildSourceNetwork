@@ -4,6 +4,7 @@ import { ORDER_TRANSITIONS, ORDER_STATUS_LABEL, type OrderStatus } from "@bmn/co
 import { assertCan, type Ctx } from "../ctx";
 import { AppError } from "../errors";
 import { audit, notifyOrg } from "./notify";
+import { syncOrderStock } from "./order-stock";
 
 /** Orders are visible only to the buying org and the supplying org. */
 const scope = (ctx: Ctx) => ({ OR: [{ buyerOrgId: ctx.orgId }, { supplierOrgId: ctx.orgId }] });
@@ -83,6 +84,7 @@ export async function advanceOrder(ctx: Ctx, orderId: string, next: OrderStatus,
       data: { status: "DELIVERED", deliveredAt: new Date() },
     });
   }
+  await syncOrderStock(orderId, next);
   await audit({
     orgId: ctx.orgId,
     actorId: ctx.userId,

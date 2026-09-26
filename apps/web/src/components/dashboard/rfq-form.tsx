@@ -18,6 +18,8 @@ export function RfqForm({
   categories,
   units,
   initialItem,
+  initialItems,
+  initialTitle,
   initialCity,
   supplierOrgId,
   supplierName,
@@ -27,6 +29,9 @@ export function RfqForm({
   categories: { id: string; name: string }[];
   units: { code: string; name: string }[];
   initialItem: { name: string; categoryId: string; productId: string; unitCode: string };
+  /** Pre-filled lines (e.g. from a project BOQ). Replaces initialItem when non-empty. */
+  initialItems?: Omit<Item, "key">[];
+  initialTitle?: string;
   initialCity: string;
   supplierOrgId?: string;
   supplierName?: string;
@@ -34,9 +39,11 @@ export function RfqForm({
   defaultCity: string;
 }) {
   const [state, action] = useActionState<ActionState, FormData>(createRfqAction, {});
-  const [items, setItems] = useState<Item[]>([
-    { key: 1, quantity: "", specification: "", ...initialItem },
-  ]);
+  const [items, setItems] = useState<Item[]>(
+    initialItems?.length
+      ? initialItems.map((x, i) => ({ ...x, key: i + 1 }))
+      : [{ key: 1, quantity: "", specification: "", ...initialItem }],
+  );
   const [mode, setMode] = useState<"get3" | "custom">(supplierOrgId ? "custom" : initialMode);
   const update = (key: number, patch: Partial<Item>) =>
     setItems((xs) => xs.map((x) => (x.key === key ? { ...x, ...patch } : x)));
@@ -206,7 +213,7 @@ export function RfqForm({
           <Input name="deliveryAddress" />
         </Field>
         <Field label="Title (optional)" hint="Helps you find this request later">
-          <Input name="title" maxLength={120} />
+          <Input name="title" maxLength={120} defaultValue={initialTitle ?? ""} />
         </Field>
         <Field label="Notes for suppliers">
           <Textarea name="notes" rows={3} />

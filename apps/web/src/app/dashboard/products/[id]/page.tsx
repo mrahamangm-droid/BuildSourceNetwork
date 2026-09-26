@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@bmn/database";
 import { requireCtx } from "@/server/access";
@@ -25,6 +26,11 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
   return (
     <div className="max-w-3xl">
       <PageHeader title="Edit product" description={p.name} />
+      <p className="mb-4 text-sm">
+        <Link className="text-brand-700 hover:underline" href={`/dashboard/products/${p.id}/pricing`}>
+          Volume pricing (quantity breaks) →
+        </Link>
+      </p>
       <ProductForm
         categories={categories}
         units={units}

@@ -5,6 +5,7 @@ import { assertBuyer, assertCan, assertOrgType, assertVerified, type Ctx } from 
 import { AppError } from "../errors";
 import { fieldErrorsFrom } from "./accounts";
 import { audit, notifyOrg } from "./notify";
+import { assertWithinLimit } from "./plans";
 
 const code = (prefix: string) => {
   const d = new Date().toISOString().slice(0, 10).replace(/-/g, "");
@@ -128,21 +129,7 @@ export async function createRfq(ctx: Ctx, raw: unknown) {
     );
   const d = parsed.data;
 
-  const sub = await db.subscription.findUnique({
-    where: { orgId: ctx.orgId },
-    include: { plan: true },
-  });
-  if (sub?.plan.rfqLimit != null) {
-    const since = new Date(Date.now() - 30 * 864e5);
-    const used = await db.rfq.count({
-      where: { buyerOrgId: ctx.orgId, createdAt: { gte: since } },
-    });
-    if (used >= sub.plan.rfqLimit)
-      throw new AppError(
-        `Your ${sub.plan.name} plan allows ${sub.plan.rfqLimit} RFQs per 30 days. Upgrade to send more.`,
-        "FORBIDDEN",
-      );
-  }
+  await assertWithinLimit(ctx.orgId, "rfq");
 
   const unitCodes = [...new Set(d.items.map((i) => i.unitCode))];
   const units = await db.unit.findMany({

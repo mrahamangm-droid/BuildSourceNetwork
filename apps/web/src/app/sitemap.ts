@@ -32,9 +32,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ]);
   const now = new Date();
   return [
-    ...["", "/marketplace", "/suppliers", "/stores", "/pricing", "/building-materials", "/tools"].map(
-      (p) => ({ url: `${base}${p}`, lastModified: now }),
-    ),
+    ...[
+      "",
+      "/marketplace",
+      "/suppliers",
+      "/manufacturers",
+      "/stores",
+      "/pricing",
+      "/building-materials",
+      "/tools",
+    ].map((p) => ({ url: `${base}${p}`, lastModified: now })),
     ...CALCULATORS.map((c) => ({ url: `${base}/tools/${c.slug}`, lastModified: now })),
     ...cats.map((c) => ({ url: `${base}/building-materials/${c.slug}`, lastModified: now })),
     ...catCity.map((x) => ({

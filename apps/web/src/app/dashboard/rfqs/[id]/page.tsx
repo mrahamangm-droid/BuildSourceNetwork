@@ -7,6 +7,8 @@ import { expireStale, getBuyerRfq, getSupplierRfq } from "@/server/services/rfq"
 import { Alert, Badge, Button, Card, PageHeader } from "@/components/ui";
 import { DemoBadge, VerifiedBadge } from "@/components/market/parts";
 import { QuoteForm } from "@/components/dashboard/quote-form";
+import { RfqAttachments } from "@/components/dashboard/rfq-attachments";
+import { listAttachments } from "@/server/services/rfq-attachments";
 import { formatDate, formatMoney, formatQty } from "@/lib/utils";
 import { BUYER_TYPES } from "@bmn/config";
 
@@ -75,6 +77,13 @@ export default async function RfqDetailPage({
             ))}
           </ul>
         </Card>
+        <div className="mb-4">
+          <RfqAttachments
+            rfqId={rfq.id}
+            files={(await listAttachments(ctx, rfq.id)).map((f) => ({ id: f.id, filename: f.filename, sizeBytes: f.sizeBytes }))}
+            canEdit={false}
+          />
+        </div>
         {quote?.order ? (
           <Alert tone="success">
             Your quote was accepted.{" "}
@@ -173,6 +182,13 @@ export default async function RfqDetailPage({
         </div>
       ) : null}
 
+      <div className="mb-4">
+        <RfqAttachments
+          rfqId={rfq.id}
+          files={(await listAttachments(ctx, rfq.id)).map((f) => ({ id: f.id, filename: f.filename, sizeBytes: f.sizeBytes }))}
+          canEdit={open}
+        />
+      </div>
       <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
         <Card className="text-sm">
           <h2 className="font-semibold">Request details</h2>

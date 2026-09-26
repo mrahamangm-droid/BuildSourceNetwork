@@ -1,4 +1,5 @@
 import { PrismaPg } from "@prisma/adapter-pg";
+import { resolveDatabaseUrl } from "@bmn/config";
 import { PrismaClient } from "./generated/client";
 
 export * from "./generated/client";
@@ -6,7 +7,7 @@ export * from "./generated/client";
 const globalForPrisma = globalThis as unknown as { __bmnPrisma?: PrismaClient };
 
 function createClient(): PrismaClient {
-  const connectionString = process.env.DATABASE_URL;
+  const connectionString = resolveDatabaseUrl(process.env);
   if (!connectionString) throw new Error("DATABASE_URL is not set");
   const adapter = new PrismaPg({
     connectionString,

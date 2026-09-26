@@ -18,7 +18,13 @@ function Inlines({ nodes }: { nodes: Inline[] }) {
             );
           case "a":
             return n.external ? (
-              <a key={i} href={n.href} rel="noopener noreferrer" target="_blank" className="text-brand-700 underline">
+              <a
+                key={i}
+                href={n.href}
+                rel="noopener noreferrer"
+                target="_blank"
+                className="text-brand-700 underline"
+              >
                 {n.v}
               </a>
             ) : (

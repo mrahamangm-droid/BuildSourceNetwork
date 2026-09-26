@@ -147,6 +147,29 @@ export async function updateProject(ctx: Ctx, id: string, raw: unknown) {
   return p;
 }
 
+/**
+ * Attach one of the buyer's own RFQs to one of their own projects, or detach it (projectId null).
+ * Lets RFQs raised before projects existed count towards a project's procurement and spend.
+ */
+export async function setRfqProject(ctx: Ctx, rfqId: string, projectId: string | null) {
+  guard(ctx);
+  const rfq = await db.rfq.findFirst({
+    where: { id: rfqId, buyerOrgId: ctx.orgId },
+    select: { id: true, projectId: true },
+  });
+  if (!rfq) throw new AppError("RFQ not found", "NOT_FOUND");
+  if (projectId) await own(ctx, projectId);
+  if (rfq.projectId === (projectId ?? null)) return;
+  await db.rfq.update({ where: { id: rfqId }, data: { projectId: projectId ?? null } });
+  await audit({
+    orgId: ctx.orgId,
+    actorId: ctx.userId,
+    action: projectId ? "rfq.project_linked" : "rfq.project_unlinked",
+    entity: "Rfq",
+    entityId: rfqId,
+  });
+}
+
 export async function listProjects(ctx: Ctx) {
   guard(ctx);
   const rows = await db.project.findMany({

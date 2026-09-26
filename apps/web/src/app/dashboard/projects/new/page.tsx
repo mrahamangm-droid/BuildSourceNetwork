@@ -9,7 +9,8 @@ export const metadata: Metadata = { title: "New project" };
 
 export default async function NewProjectPage() {
   const ctx = await requireCtx();
-  if (!BUYER_TYPES.includes(ctx.orgType) || !roleHas(ctx.role, "project.manage")) redirect("/dashboard");
+  if (!BUYER_TYPES.includes(ctx.orgType) || !roleHas(ctx.role, "project.manage"))
+    redirect("/dashboard");
   return (
     <div className="max-w-3xl">
       <PageHeader title="New project" />

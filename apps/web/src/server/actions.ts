@@ -264,6 +264,7 @@ export async function createRfqAction(_: ActionState, fd: FormData): Promise<Act
       notes: str(fd, "notes"),
       items,
       supplierOrgIds: fd.getAll("supplierOrgIds").map(String).filter(Boolean),
+      projectId: str(fd, "projectId"),
     });
     id = res.rfq.id;
   } catch (e) {
@@ -886,6 +887,61 @@ export async function addAiBoqLinesAction(_: ActionState, fd: FormData): Promise
     return {
       ok: true,
       message: `${n} lines added. Check each quantity and enter your unit rates.`,
+    };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export type BoqImportState = AiBoqState & { skipped?: string[]; truncated?: boolean };
+const IMPORT_MAX_FILE_BYTES = 200_000;
+
+/** Import step 1: read a pasted list or an uploaded .csv/.tsv/.txt. Saves nothing. */
+export async function previewBoqImportAction(
+  _: BoqImportState,
+  fd: FormData,
+): Promise<BoqImportState> {
+  const projectId = str(fd, "projectId");
+  try {
+    const ctx = await requireCtx();
+    let text = str(fd, "text");
+    const file = fd.get("file");
+    if (file instanceof File && file.size > 0) {
+      if (file.size > IMPORT_MAX_FILE_BYTES)
+        return { error: "That file is too large. Keep it under 200 KB (about 3,000 lines)." };
+      if (!/\.(csv|tsv|txt)$/i.test(file.name))
+        return {
+          error:
+            "Upload a .csv, .tsv or .txt file. In Excel, use Save As → CSV, or paste the cells.",
+        };
+      text = await file.text();
+    }
+    const r = await projects.previewImport(ctx, projectId, text);
+    return { ok: true, lines: r.lines, skipped: r.skipped, truncated: r.truncated };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/** Import step 2: save the lines the user kept. */
+export async function addImportedBoqLinesAction(
+  _: ActionState,
+  fd: FormData,
+): Promise<ActionState> {
+  const projectId = str(fd, "projectId");
+  try {
+    const ctx = await requireCtx();
+    let lines: unknown;
+    try {
+      lines = JSON.parse(str(fd, "lines") || "[]");
+    } catch {
+      return { error: "Could not read the selected lines. Please import again." };
+    }
+    const n = await projects.addImportedLines(ctx, projectId, lines);
+    revalidatePath(`/dashboard/projects/${projectId}`);
+    return {
+      ok: true,
+      message: `${n} lines added. Enter your unit rates, then tick lines to request quotes.`,
     };
   } catch (e) {
     return fail(e);

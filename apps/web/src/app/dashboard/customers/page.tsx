@@ -38,7 +38,9 @@ export default async function CustomersPage({
         </div>
         <div className="rounded-xl border border-line p-4">
           <p className="text-xs uppercase text-muted">Overdue</p>
-          <p className={`mt-1 text-2xl font-bold ${totalOverdue > 0 ? "text-red-700" : ""}`}>{formatMoney(totalOverdue)}</p>
+          <p className={`mt-1 text-2xl font-bold ${totalOverdue > 0 ? "text-red-700" : ""}`}>
+            {formatMoney(totalOverdue)}
+          </p>
         </div>
         <div className="rounded-xl border border-line p-4">
           <p className="text-xs uppercase text-muted">Customers</p>
@@ -46,14 +48,26 @@ export default async function CustomersPage({
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        <Link href="/dashboard/customers" className={`rounded-full border px-3 py-1 ${!owingOnly ? "border-brand-600 text-brand-700" : "border-line"}`}>
+        <Link
+          href="/dashboard/customers"
+          className={`rounded-full border px-3 py-1 ${!owingOnly ? "border-brand-600 text-brand-700" : "border-line"}`}
+        >
           All
         </Link>
-        <Link href="/dashboard/customers?owing=1" className={`rounded-full border px-3 py-1 ${owingOnly ? "border-brand-600 text-brand-700" : "border-line"}`}>
+        <Link
+          href="/dashboard/customers?owing=1"
+          className={`rounded-full border px-3 py-1 ${owingOnly ? "border-brand-600 text-brand-700" : "border-line"}`}
+        >
           Owing
         </Link>
         <form className="ml-auto">
-          <input name="q" defaultValue={q} placeholder="Search name, contact or phone" className="h-9 rounded-lg border border-line px-3 text-sm" aria-label="Search customers" />
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder="Search name, contact or phone"
+            className="h-9 rounded-lg border border-line px-3 text-sm"
+            aria-label="Search customers"
+          />
         </form>
       </div>
       {rows.length ? (
@@ -72,16 +86,35 @@ export default async function CustomersPage({
               {rows.map((r) => (
                 <tr key={r.id} className={r.isActive ? "" : "opacity-60"}>
                   <td className="px-4 py-3">
-                    <Link href={`/dashboard/customers/${r.id}`} className="font-medium text-brand-700 hover:underline">
+                    <Link
+                      href={`/dashboard/customers/${r.id}`}
+                      className="font-medium text-brand-700 hover:underline"
+                    >
                       {r.name}
                     </Link>
-                    <div className="text-xs text-muted">{[r.city, r.phone].filter(Boolean).join(" · ")}</div>
+                    <div className="text-xs text-muted">
+                      {[r.city, r.phone].filter(Boolean).join(" · ")}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-right font-semibold">{formatMoney(r.balance)}</td>
-                  <td className={`px-4 py-3 text-right ${r.overdue > 0 ? "text-red-700" : ""}`}>{r.overdue > 0 ? formatMoney(r.overdue) : "—"}</td>
-                  <td className="px-4 py-3 text-right">{r.creditLimit == null ? "No limit" : formatMoney(r.creditLimit)}</td>
+                  <td className={`px-4 py-3 text-right ${r.overdue > 0 ? "text-red-700" : ""}`}>
+                    {r.overdue > 0 ? formatMoney(r.overdue) : "—"}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {r.creditLimit == null ? "No limit" : formatMoney(r.creditLimit)}
+                  </td>
                   <td className="px-4 py-3">
-                    {!r.isActive ? <Badge>Archived</Badge> : r.overLimit ? <Badge tone="red">Over limit</Badge> : r.overdue > 0 ? <Badge tone="amber">Overdue</Badge> : r.balance > 0 ? <Badge tone="blue">Owing</Badge> : <Badge tone="green">Clear</Badge>}
+                    {!r.isActive ? (
+                      <Badge>Archived</Badge>
+                    ) : r.overLimit ? (
+                      <Badge tone="red">Over limit</Badge>
+                    ) : r.overdue > 0 ? (
+                      <Badge tone="amber">Overdue</Badge>
+                    ) : r.balance > 0 ? (
+                      <Badge tone="blue">Owing</Badge>
+                    ) : (
+                      <Badge tone="green">Clear</Badge>
+                    )}
                   </td>
                 </tr>
               ))}

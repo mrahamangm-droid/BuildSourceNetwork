@@ -23,9 +23,13 @@ import {
 
 const money = (d: { toString(): string }) => toCents(Number(d.toString()));
 
-function guard(ctx: Ctx) {
+/** Reading the customer book needs no verified email; changing it does (see guard). */
+function view(ctx: Ctx) {
   assertOrgType(ctx, "SUPPLIER", "STORE");
   assertCan(ctx, "customer.manage");
+}
+function guard(ctx: Ctx) {
+  view(ctx);
   assertVerified(ctx);
 }
 /** Voiding rewrites history, so it is limited to owners and admins. */
@@ -182,7 +186,7 @@ export async function listCustomers(
   ctx: Ctx,
   opts: { q?: string; owingOnly?: boolean } = {},
 ): Promise<CustomerRow[]> {
-  guard(ctx);
+  view(ctx);
   const [customers, invoices, payments] = await Promise.all([
     db.customer.findMany({
       where: {
@@ -257,7 +261,7 @@ export async function listCustomers(
 }
 
 export async function getCustomerLedger(ctx: Ctx, id: string) {
-  guard(ctx);
+  view(ctx);
   const customer = await db.customer.findFirst({ where: { id, orgId: ctx.orgId } });
   if (!customer) return null;
   const [invoices, payments] = await Promise.all([

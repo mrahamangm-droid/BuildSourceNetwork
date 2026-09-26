@@ -26,8 +26,11 @@ export default async function ProductsPage({
         description="Your catalogue. Active products appear in the public marketplace."
         action={
           <div className="flex flex-wrap gap-2">
+            <LinkButton href="/dashboard/products/bulk" variant="outline">
+              Bulk upload (Excel/CSV)
+            </LinkButton>
             <LinkButton href="/dashboard/products/import" variant="outline">
-              Import from spreadsheet
+              Quick paste import
             </LinkButton>
             <LinkButton href="/dashboard/products/new">Add product</LinkButton>
           </div>

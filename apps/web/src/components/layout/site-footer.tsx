@@ -21,6 +21,9 @@ export function SiteFooter() {
               <Link href="/suppliers">Suppliers</Link>
             </li>
             <li>
+              <Link href="/manufacturers">Manufacturers</Link>
+            </li>
+            <li>
               <Link href="/stores">Stores</Link>
             </li>
             <li>

@@ -11,6 +11,7 @@ import {
 } from "@/components/market/parts";
 import { getPublicProduct } from "@/server/services/products";
 import { appUrl, formatMoney, formatQty } from "@/lib/utils";
+import { savingsPercent } from "@/lib/pricing";
 
 export const dynamic = "force-dynamic";
 
@@ -121,6 +122,37 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
               <dd className="font-medium">{p.deliveryAvailable ? "Available" : "Pick-up only"}</dd>
             </div>
           </dl>
+          {p.priceBreaks.length ? (
+            <div className="mt-4 overflow-hidden rounded-lg border border-line text-sm">
+              <table className="w-full text-left">
+                <caption className="bg-surface px-3 py-2 text-left text-xs font-semibold uppercase text-muted">
+                  Volume pricing
+                </caption>
+                <tbody className="divide-y divide-line">
+                  <tr>
+                    <td className="px-3 py-2">
+                      {formatQty(p.minOrderQty)}+ {p.unit.name.toLowerCase()}
+                    </td>
+                    <td className="px-3 py-2 font-medium">{formatMoney(p.price.toString(), p.currency)}</td>
+                    <td className="px-3 py-2 text-muted" />
+                  </tr>
+                  {p.priceBreaks.map((b) => (
+                    <tr key={b.id}>
+                      <td className="px-3 py-2">
+                        {formatQty(b.minQty)}+ {p.unit.name.toLowerCase()}
+                      </td>
+                      <td className="px-3 py-2 font-medium">
+                        {formatMoney(b.price.toString(), p.currency)}
+                      </td>
+                      <td className="px-3 py-2 text-green-700">
+                        Save {savingsPercent(Number(p.price), Number(b.price))}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
           <div className="mt-6 flex flex-wrap gap-2">
             <LinkButton href={`/request-quotes?productId=${p.id}`} size="lg">
               Get 3 Quotes

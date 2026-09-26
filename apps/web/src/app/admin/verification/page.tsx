@@ -40,16 +40,39 @@ export default async function VerificationQueue({
             <span className="text-sm text-muted">{r.org.city}</span>
           </div>
           <dl className="mt-3 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
-            <div><dt className="inline text-muted">Registered name: </dt><dd className="inline">{r.legalName}</dd></div>
-            <div><dt className="inline text-muted">Licence no.: </dt><dd className="inline">{r.licenseNumber}</dd></div>
-            <div><dt className="inline text-muted">Authority: </dt><dd className="inline">{r.licenseAuthority ?? "—"}</dd></div>
-            <div><dt className="inline text-muted">Tax no.: </dt><dd className="inline">{r.taxNumber ?? "—"}</dd></div>
-            <div><dt className="inline text-muted">Contact: </dt><dd className="inline">{r.org.email ?? r.org.phone ?? "—"}</dd></div>
-            <div><dt className="inline text-muted">Submitted: </dt><dd className="inline">{r.createdAt.toISOString().slice(0, 10)}</dd></div>
+            <div>
+              <dt className="inline text-muted">Registered name: </dt>
+              <dd className="inline">{r.legalName}</dd>
+            </div>
+            <div>
+              <dt className="inline text-muted">Licence no.: </dt>
+              <dd className="inline">{r.licenseNumber}</dd>
+            </div>
+            <div>
+              <dt className="inline text-muted">Authority: </dt>
+              <dd className="inline">{r.licenseAuthority ?? "—"}</dd>
+            </div>
+            <div>
+              <dt className="inline text-muted">Tax no.: </dt>
+              <dd className="inline">{r.taxNumber ?? "—"}</dd>
+            </div>
+            <div>
+              <dt className="inline text-muted">Contact: </dt>
+              <dd className="inline">{r.org.email ?? r.org.phone ?? "—"}</dd>
+            </div>
+            <div>
+              <dt className="inline text-muted">Submitted: </dt>
+              <dd className="inline">{r.createdAt.toISOString().slice(0, 10)}</dd>
+            </div>
           </dl>
           {r.notes ? <p className="mt-2 text-sm">{r.notes}</p> : null}
           {r.licenseDocUrl ? (
-            <a className="mt-2 inline-block text-sm text-brand-700 hover:underline" href={r.licenseDocUrl} target="_blank" rel="noreferrer">
+            <a
+              className="mt-2 inline-block text-sm text-brand-700 hover:underline"
+              href={r.licenseDocUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
               View licence document
             </a>
           ) : (

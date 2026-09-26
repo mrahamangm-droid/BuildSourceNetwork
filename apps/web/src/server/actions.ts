@@ -22,6 +22,7 @@ import * as projects from "./services/projects";
 import * as orderStock from "./services/order-stock";
 import * as plans from "./services/plans";
 import * as branches from "./services/branches";
+import * as blog from "./services/blog";
 import * as rfqAttachments from "./services/rfq-attachments";
 import type { DeliveryStatusValue } from "@/lib/delivery-rules";
 import { ORDER_STATUSES, type OrderStatus } from "@bmn/config";
@@ -477,6 +478,46 @@ export async function stockMovementAction(_: ActionState, fd: FormData): Promise
   } catch (e) {
     return fail(e);
   }
+}
+
+// ───────── blog (platform admin) ─────────
+
+export async function savePostAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const id = str(fd, "id") || null;
+  let createdId: string | null = null;
+  try {
+    const a = await requireAdmin();
+    const post = await blog.savePost({ userId: a.id, isPlatformAdmin: true }, id, {
+      title: str(fd, "title"),
+      slug: str(fd, "slug"),
+      excerpt: str(fd, "excerpt"),
+      body: fd.get("body")?.toString() ?? "",
+      tags: str(fd, "tags"),
+    });
+    if (!id) createdId = post.id;
+    revalidatePath("/admin/blog");
+    revalidatePath("/blog");
+    revalidatePath(`/blog/${post.slug}`);
+  } catch (e) {
+    return fail(e);
+  }
+  if (createdId) redirect(`/admin/blog/${createdId}?saved=1`);
+  return { ok: true, message: "Saved." };
+}
+
+export async function setPostPublishedAction(fd: FormData) {
+  const id = str(fd, "id");
+  const a = await requireAdmin();
+  await blog.setPublished({ userId: a.id, isPlatformAdmin: true }, id, str(fd, "publish") === "1");
+  revalidatePath("/admin/blog");
+  revalidatePath(`/admin/blog/${id}`);
+  revalidatePath("/blog");
+}
+
+export async function importStarterPostsAction() {
+  const a = await requireAdmin();
+  await blog.importStarters({ userId: a.id, isPlatformAdmin: true });
+  revalidatePath("/admin/blog");
 }
 
 // ───────── branches & warehouses ─────────

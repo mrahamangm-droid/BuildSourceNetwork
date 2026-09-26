@@ -77,7 +77,9 @@ describe("csv", () => {
     expect(csvCell(5)).toBe("5");
   });
   it("renders a row with blank cost when unpriced", () => {
-    const out = boqCsv([{ section: "S", description: "D", unit: "m2", ...line({ unitRate: null }) }]);
+    const out = boqCsv([
+      { section: "S", description: "D", unit: "m2", ...line({ unitRate: null }) },
+    ]);
     expect(out.split("\r\n")[1]).toBe("S,D,m2,100,5,105,,");
   });
 });

@@ -39,7 +39,13 @@ describe("boqLineToRfqItem", () => {
   };
   it("uses the order quantity including waste and records where it came from", () => {
     const i = boqLineToRfqItem(
-      { section: "Structure", description: "Reinforcement steel", unit: "kg", quantity: 1000, wastePercent: 5 },
+      {
+        section: "Structure",
+        description: "Reinforcement steel",
+        unit: "kg",
+        quantity: 1000,
+        wastePercent: 5,
+      },
       env,
     );
     expect(i).toMatchObject({ categoryId: "c1", quantity: "1050", unitCode: "KG", productId: "" });
@@ -47,7 +53,13 @@ describe("boqLineToRfqItem", () => {
   });
   it("leaves category and unit blank when it cannot tell", () => {
     const i = boqLineToRfqItem(
-      { section: "Substructure", description: "Excavation", unit: "m3", quantity: 10, wastePercent: 0 },
+      {
+        section: "Substructure",
+        description: "Excavation",
+        unit: "m3",
+        quantity: 10,
+        wastePercent: 0,
+      },
       env,
     );
     expect(i.categoryId).toBe("");

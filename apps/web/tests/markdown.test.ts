@@ -1,13 +1,31 @@
 import { describe, expect, it } from "vitest";
-import { parseInline, parseMarkdown, parseTags, readingMinutes, safeHref, slugify } from "../src/lib/markdown";
+import {
+  parseInline,
+  parseMarkdown,
+  parseTags,
+  readingMinutes,
+  safeHref,
+  slugify,
+} from "../src/lib/markdown";
 
 describe("safeHref", () => {
   it("allows http(s) and site-relative links", () => {
-    expect(safeHref("https://example.com/a?b=1")).toEqual({ href: "https://example.com/a?b=1", external: true });
+    expect(safeHref("https://example.com/a?b=1")).toEqual({
+      href: "https://example.com/a?b=1",
+      external: true,
+    });
     expect(safeHref("/suppliers")).toEqual({ href: "/suppliers", external: false });
   });
   it("refuses script, data, protocol-relative and bare values", () => {
-    for (const u of ["javascript:alert(1)", "JaVaScRiPt:alert(1)", "data:text/html,x", "//evil.com", "mailto:a@b.c", "example.com", "vbscript:x"])
+    for (const u of [
+      "javascript:alert(1)",
+      "JaVaScRiPt:alert(1)",
+      "data:text/html,x",
+      "//evil.com",
+      "mailto:a@b.c",
+      "example.com",
+      "vbscript:x",
+    ])
       expect(safeHref(u)).toBeNull();
   });
 });
@@ -30,7 +48,9 @@ describe("parseInline", () => {
 
 describe("parseMarkdown", () => {
   it("builds headings, paragraphs and lists", () => {
-    const b = parseMarkdown("# Title\n\nHello\nworld\n\n- one\n- two\n\n1. a\n2) b\n\n> quote\n\n---");
+    const b = parseMarkdown(
+      "# Title\n\nHello\nworld\n\n- one\n- two\n\n1. a\n2) b\n\n> quote\n\n---",
+    );
     expect(b.map((x) => x.t)).toEqual(["h2", "p", "ul", "ol", "quote", "hr"]);
     const p = b[1];
     expect(p.t === "p" && p.inline[0]).toEqual({ t: "text", v: "Hello world" });
@@ -53,7 +73,13 @@ describe("slugify / tags / reading time", () => {
     expect(slugify("!!!")).toBe("");
   });
   it("de-duplicates and caps tags", () => {
-    expect(parseTags("RFQ, rfq, Buying Tips, a,b,c,d,e")).toEqual(["rfq", "buying-tips", "a", "b", "c"]);
+    expect(parseTags("RFQ, rfq, Buying Tips, a,b,c,d,e")).toEqual([
+      "rfq",
+      "buying-tips",
+      "a",
+      "b",
+      "c",
+    ]);
   });
   it("estimates reading time with a minimum of one minute", () => {
     expect(readingMinutes("word")).toBe(1);

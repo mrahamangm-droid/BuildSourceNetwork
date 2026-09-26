@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { applyMovement, available, isLow, statusFor, StockError, toMilli } from "@/server/stock-math";
+import {
+  applyMovement,
+  available,
+  isLow,
+  statusFor,
+  StockError,
+  toMilli,
+} from "@/server/stock-math";
 
-const b = (onHand: number, reserved = 0) => ({ onHand: toMilli(onHand), reserved: toMilli(reserved) });
+const b = (onHand: number, reserved = 0) => ({
+  onHand: toMilli(onHand),
+  reserved: toMilli(reserved),
+});
 
 describe("stock math", () => {
   it("receipt adds to on-hand", () => {
@@ -27,7 +37,8 @@ describe("stock math", () => {
     expect(applyMovement(b(10, 0), "ADJUSTMENT", 0).balance.onHand).toBe(0);
   });
   it("rejects zero, negative and non-finite quantities for normal movements", () => {
-    for (const q of [0, -1, NaN, Infinity]) expect(() => applyMovement(b(10), "RECEIPT", q)).toThrow(StockError);
+    for (const q of [0, -1, NaN, Infinity])
+      expect(() => applyMovement(b(10), "RECEIPT", q)).toThrow(StockError);
   });
   it("has no float drift on fractional quantities", () => {
     let bal = b(0);

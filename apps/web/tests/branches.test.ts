@@ -14,7 +14,9 @@ describe("warehouseDeleteBlocker", () => {
     expect(warehouseDeleteBlocker({ ...empty, movements: 3 })).toMatch(/history/);
   });
   it("reports reservations before plain stock", () => {
-    expect(warehouseDeleteBlocker({ ...empty, onHandMilli: 9, reservedMilli: 1 })).toMatch(/reserved/);
+    expect(warehouseDeleteBlocker({ ...empty, onHandMilli: 9, reservedMilli: 1 })).toMatch(
+      /reserved/,
+    );
   });
 });
 
@@ -23,10 +25,18 @@ describe("transferBlocker", () => {
     expect(transferBlocker({ fromWarehouseId: "a", toWarehouseId: "b", quantity: 2.5 })).toBeNull();
   });
   it("rejects same, missing and non-positive input", () => {
-    expect(transferBlocker({ fromWarehouseId: "a", toWarehouseId: "a", quantity: 1 })).toMatch(/different/);
-    expect(transferBlocker({ fromWarehouseId: "", toWarehouseId: "b", quantity: 1 })).toMatch(/both/);
-    expect(transferBlocker({ fromWarehouseId: "a", toWarehouseId: "b", quantity: 0 })).toMatch(/greater/);
-    expect(transferBlocker({ fromWarehouseId: "a", toWarehouseId: "b", quantity: NaN })).toMatch(/greater/);
+    expect(transferBlocker({ fromWarehouseId: "a", toWarehouseId: "a", quantity: 1 })).toMatch(
+      /different/,
+    );
+    expect(transferBlocker({ fromWarehouseId: "", toWarehouseId: "b", quantity: 1 })).toMatch(
+      /both/,
+    );
+    expect(transferBlocker({ fromWarehouseId: "a", toWarehouseId: "b", quantity: 0 })).toMatch(
+      /greater/,
+    );
+    expect(transferBlocker({ fromWarehouseId: "a", toWarehouseId: "b", quantity: NaN })).toMatch(
+      /greater/,
+    );
   });
 });
 

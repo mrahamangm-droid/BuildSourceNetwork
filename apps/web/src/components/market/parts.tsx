@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Badge, Card } from "@/components/ui";
 import { formatMoney, formatQty } from "@/lib/utils";
-import { DEMO_LABEL } from "@bmn/config";
+import { DEMO_LABEL, SUPPLIER_KIND_LABEL, type SupplierKind } from "@bmn/config";
 
 export function VerifiedBadge({ status }: { status: string }) {
   return status === "VERIFIED" ? <Badge tone="green">Verified business</Badge> : null;
@@ -108,6 +108,7 @@ export function OrgCard({
     verificationStatus: string;
     isDemo: boolean;
     categories: { name: string }[];
+    supplierKind?: string | null;
     _count?: { products: number };
   };
   basePath: "suppliers" | "stores";
@@ -140,6 +141,9 @@ export function OrgCard({
       <div className="flex flex-wrap gap-1">
         <VerifiedBadge status={o.verificationStatus} />
         <DemoBadge show={o.isDemo} />
+        {o.supplierKind ? (
+          <Badge>{SUPPLIER_KIND_LABEL[o.supplierKind as SupplierKind] ?? o.supplierKind}</Badge>
+        ) : null}
         {o.categories.slice(0, 3).map((c) => (
           <Badge key={c.name}>{c.name}</Badge>
         ))}

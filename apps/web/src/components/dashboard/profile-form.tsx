@@ -1,6 +1,7 @@
 "use client";
 import { useActionState } from "react";
-import { Card, Field, Input, Textarea } from "@/components/ui";
+import { Card, Field, Input, Select, Textarea } from "@/components/ui";
+import { SUPPLIER_KINDS, SUPPLIER_KIND_LABEL } from "@bmn/config";
 import { FormMessage, ImageUpload, SubmitButton, fe } from "@/components/forms/shared";
 import { saveOrgProfileAction, type ActionState } from "@/server/actions";
 
@@ -17,6 +18,12 @@ type Org = {
   logoUrl: string | null;
   coverUrl: string | null;
   categories: { id: string }[];
+  type?: string;
+  supplierKind?: string | null;
+  leadTimeDays?: number | null;
+  minOrderNote?: string | null;
+  capacityNote?: string | null;
+  certifications?: string[];
 };
 
 export function ProfileForm({
@@ -82,6 +89,49 @@ export function ProfileForm({
             <Input name="deliveryAreas" defaultValue={org.deliveryAreas.join(", ")} />
           </Field>
         </Card>
+        {org.type === "SUPPLIER" ? (
+          <Card className="space-y-4">
+            <div>
+              <h2 className="font-semibold">Supplier &amp; factory details</h2>
+              <p className="text-sm text-muted">
+                Manufacturers appear in the manufacturer directory. Only state what you can back up
+                with documents; certifications are self-declared until verified by our team.
+              </p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="We are a">
+                <Select name="supplierKind" defaultValue={org.supplierKind ?? ""}>
+                  <option value="">Not specified</option>
+                  {SUPPLIER_KINDS.map((k) => (
+                    <option key={k} value={k}>
+                      {SUPPLIER_KIND_LABEL[k]}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field
+                label="Typical lead time (days)"
+                hint="0 = ex-stock"
+                error={fe(state, "leadTimeDays")}
+              >
+                <Input
+                  name="leadTimeDays"
+                  inputMode="numeric"
+                  defaultValue={org.leadTimeDays ?? ""}
+                />
+              </Field>
+            </div>
+            <Field label="Minimum order" hint="e.g. 1 truckload (25 t) or AED 5,000">
+              <Input name="minOrderNote" defaultValue={org.minOrderNote ?? ""} />
+            </Field>
+            <Field label="Production capacity" hint="e.g. 2,000 t / month">
+              <Input name="capacityNote" defaultValue={org.capacityNote ?? ""} />
+            </Field>
+            <Field label="Certifications" hint="Comma-separated, e.g. ISO 9001, ESMA, BS 4449">
+              <Input name="certifications" defaultValue={(org.certifications ?? []).join(", ")} />
+            </Field>
+          </Card>
+        ) : null}
         <Card className="space-y-3">
           <h2 className="font-semibold">Product categories</h2>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">

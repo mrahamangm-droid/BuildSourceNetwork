@@ -11,7 +11,8 @@ import {
 import { getPublicOrg } from "@/server/services/orgs";
 import { searchProducts } from "@/server/services/products";
 import { appUrl } from "@/lib/utils";
-import { DEMO_LABEL } from "@bmn/config";
+import { DEMO_LABEL, SUPPLIER_KIND_LABEL, type SupplierKind } from "@bmn/config";
+import { leadTimeLabel } from "@/lib/manufacturer";
 
 export async function loadOrg(slug: string, type: "SUPPLIER" | "STORE") {
   return getPublicOrg(slug, type);
@@ -92,6 +93,9 @@ export async function OrgProfile({
             <div className="mt-1 flex flex-wrap gap-1">
               <VerifiedBadge status={org.verificationStatus} />
               <DemoBadge show={org.isDemo} />
+              {org.supplierKind ? (
+                <Badge>{SUPPLIER_KIND_LABEL[org.supplierKind as SupplierKind]}</Badge>
+              ) : null}
               {org.city ? <Badge>{org.city}</Badge> : null}
             </div>
             {org.isDemo ? <p className="mt-2 text-xs text-amber-800">{DEMO_LABEL}.</p> : null}
@@ -164,6 +168,47 @@ export async function OrgProfile({
               </div>
             </dl>
           </Card>
+          {type === "SUPPLIER" &&
+          (org.leadTimeDays != null ||
+            org.minOrderNote ||
+            org.capacityNote ||
+            org.certifications.length) ? (
+            <Card>
+              <h2 className="font-semibold">
+                {org.supplierKind === "MANUFACTURER" ? "Factory details" : "Supply terms"}
+              </h2>
+              <dl className="mt-2 space-y-1 text-sm">
+                {org.leadTimeDays != null ? (
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-muted">Lead time</dt>
+                    <dd>{leadTimeLabel(org.leadTimeDays)}</dd>
+                  </div>
+                ) : null}
+                {org.minOrderNote ? (
+                  <div>
+                    <dt className="text-muted">Minimum order</dt>
+                    <dd>{org.minOrderNote}</dd>
+                  </div>
+                ) : null}
+                {org.capacityNote ? (
+                  <div>
+                    <dt className="text-muted">Capacity</dt>
+                    <dd>{org.capacityNote}</dd>
+                  </div>
+                ) : null}
+                {org.certifications.length ? (
+                  <div>
+                    <dt className="text-muted">Certifications (self-declared)</dt>
+                    <dd className="mt-1 flex flex-wrap gap-1">
+                      {org.certifications.map((c) => (
+                        <Badge key={c}>{c}</Badge>
+                      ))}
+                    </dd>
+                  </div>
+                ) : null}
+              </dl>
+            </Card>
+          ) : null}
           <Card>
             <h2 className="font-semibold">Contact & details</h2>
             <dl className="mt-2 space-y-1 text-sm">

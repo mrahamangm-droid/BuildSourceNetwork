@@ -23,16 +23,19 @@ export default async function DashboardLayout({ children }: { children: React.Re
       ? [
           { href: "/dashboard/products", label: "Products" },
           { href: "/dashboard/inventory", label: "Inventory" },
+          { href: "/dashboard/customers", label: "Customers" },
         ]
       : []),
+    ...(isBuyer ? [{ href: "/dashboard/projects", label: "Projects & BOQ" }] : []),
     { href: "/dashboard/rfqs", label: isSupplier ? "RFQ inbox" : "RFQs" },
     { href: "/dashboard/orders", label: "Orders" },
+    { href: "/dashboard/deliveries", label: "Deliveries" },
     { href: "/dashboard/notifications", label: "Notifications" },
     { href: "/dashboard/profile", label: "Company profile" },
     { href: "/dashboard/verification", label: "Verification" },
+    { href: "/dashboard/billing", label: "Plan & usage" },
     { href: "/dashboard/settings", label: "Settings" },
   ];
-  void isBuyer;
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
       <div className="mb-4 flex flex-wrap items-center gap-2">

@@ -162,6 +162,8 @@ export async function saveOrgProfileAction(_: ActionState, fd: FormData): Promis
       addressLine: str(fd, "addressLine"),
       city: str(fd, "city"),
       businessHours: str(fd, "businessHours"),
+      tagline: str(fd, "tagline"),
+      policies: str(fd, "policies"),
       deliveryAreas: str(fd, "deliveryAreas"),
       categoryIds: fd.getAll("categoryIds").map(String),
       logoUrl: str(fd, "logoUrl"),

@@ -209,3 +209,26 @@ export const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
 };
 
 export const DEMO_LABEL = "Demo data — not a real business";
+
+// ------------------------------------------------------------------ database url
+
+const PG_URL = /^postgres(ql)?:\/\//i;
+
+/**
+ * Finds the Postgres connection string. `DATABASE_URL` wins. Otherwise a Vercel storage
+ * integration may have added it under a prefix (for example `myproject_DATABASE_URL` or
+ * `POSTGRES_URL`); the first plain `postgres://` value among those is used. Prisma Accelerate
+ * style `prisma+postgres://` URLs are skipped because the pg driver cannot open them.
+ */
+export function resolveDatabaseUrl(env: Record<string, string | undefined>): string | undefined {
+  const own = env.DATABASE_URL?.trim();
+  if (own) return own;
+  const suffixes = ["_DATABASE_URL", "POSTGRES_URL", "_POSTGRES_URL"];
+  for (const suffix of suffixes) {
+    const keys = Object.keys(env)
+      .filter((k) => k.endsWith(suffix) && env[k] && PG_URL.test(env[k]!.trim()))
+      .sort();
+    if (keys.length) return env[keys[0]!]!.trim();
+  }
+  return undefined;
+}

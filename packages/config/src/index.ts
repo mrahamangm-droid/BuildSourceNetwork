@@ -48,7 +48,16 @@ export type Permission = (typeof PERMISSIONS)[number];
 export const ROLE_PERMISSIONS: Record<MemberRole, Permission[]> = {
   OWNER: [...PERMISSIONS],
   ADMIN: [...PERMISSIONS],
-  MANAGER: ["product.manage", "inventory.manage", "customer.manage", "project.manage", "rfq.create", "rfq.respond", "order.manage", "order.view"],
+  MANAGER: [
+    "product.manage",
+    "inventory.manage",
+    "customer.manage",
+    "project.manage",
+    "rfq.create",
+    "rfq.respond",
+    "order.manage",
+    "order.view",
+  ],
   STAFF: ["rfq.create", "order.view"],
 };
 

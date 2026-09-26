@@ -20,11 +20,13 @@ export function OrderStockPanel({
   canReserve,
   lines,
   products,
+  warehouses = [],
 }: {
   orderId: string;
   canReserve: boolean;
   lines: Line[];
   products: { id: string; name: string; unitCode: string }[];
+  warehouses?: { id: string; label: string }[];
 }) {
   const [state, action] = useActionState<ActionState, FormData>(orderStockAction, {});
   const anyReserved = lines.some((l) => l.state === "RESERVED");
@@ -73,6 +75,22 @@ export function OrderStockPanel({
             </li>
           ))}
         </ul>
+        {canReserve && anyOpen && warehouses.length > 1 ? (
+          <label className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-muted">Reserve from</span>
+            <select
+              name="warehouseId"
+              defaultValue={warehouses[0].id}
+              className="h-9 rounded-lg border border-line px-2 text-sm"
+            >
+              {warehouses.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
         {!canReserve && anyOpen ? (
           <p className="text-xs text-muted">Stock can be reserved while the order is confirmed or being prepared.</p>
         ) : null}

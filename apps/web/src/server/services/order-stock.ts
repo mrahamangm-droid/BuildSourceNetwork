@@ -3,6 +3,7 @@ import { assertCan, type Ctx } from "../ctx";
 import { AppError } from "../errors";
 import { audit } from "./notify";
 import { moveInTx } from "./inventory";
+import { listWarehouseOptions } from "./branches";
 import { StockError } from "../stock-math";
 import {
   autoActionFor,
@@ -76,7 +77,9 @@ export async function getOrderStock(ctx: Ctx, orderId: string) {
     select: { id: true, name: true, unitCode: true },
     take: 500,
   });
+  const warehouses = await listWarehouseOptions(ctx);
   return {
+    warehouses,
     canReserve: (RESERVABLE_ORDER_STATUSES as readonly string[]).includes(order.status),
     products,
     lines: order.items.map((i) => ({
@@ -92,7 +95,12 @@ export async function getOrderStock(ctx: Ctx, orderId: string) {
 }
 
 /** mapping: order item id -> the supplier's product id. Lines left blank are skipped. */
-export async function reserveOrderStock(ctx: Ctx, orderId: string, mapping: Record<string, string>) {
+export async function reserveOrderStock(
+  ctx: Ctx,
+  orderId: string,
+  mapping: Record<string, string>,
+  warehouseId = "",
+) {
   guard(ctx);
   const n = await db.$transaction(async (tx) => {
     const order = await supplierOrder(tx, ctx.orgId, orderId);
@@ -116,7 +124,7 @@ export async function reserveOrderStock(ctx: Ctx, orderId: string, mapping: Reco
       try {
         res = await moveInTx(tx, ctx, "RESERVE", {
           productId: product.id,
-          warehouseId: "",
+          warehouseId, // "" = the default (oldest) warehouse; ownership is checked in moveInTx
           quantity: Number(item.quantity.toString()),
           unitCost: undefined,
           reference: order.number,

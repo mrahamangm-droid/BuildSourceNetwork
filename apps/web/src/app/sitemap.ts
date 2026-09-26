@@ -2,13 +2,14 @@ import type { MetadataRoute } from "next";
 import { db } from "@bmn/database";
 import { slugify } from "@bmn/config";
 import { appUrl } from "@/lib/utils";
+import { publishedForSitemap } from "@/server/services/blog";
 
 export const dynamic = "force-dynamic";
 
 /** Only pages backed by real records are listed. */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = appUrl();
-  const [cats, products, orgs, catCity] = await Promise.all([
+  const [cats, products, orgs, catCity, posts] = await Promise.all([
     db.category.findMany({
       where: { products: { some: { isActive: true, org: { isActive: true } } } },
       select: { slug: true },
@@ -28,10 +29,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       distinct: ["categoryId", "city"],
       select: { city: true, category: { select: { slug: true } } },
     }),
+    publishedForSitemap(),
   ]);
   const now = new Date();
   return [
-    ...["", "/marketplace", "/suppliers", "/manufacturers", "/stores", "/pricing", "/building-materials"].map(
+    ...["", "/marketplace", "/suppliers", "/manufacturers", "/stores", "/blog", "/pricing", "/building-materials"].map(
       (p) => ({ url: `${base}${p}`, lastModified: now }),
     ),
     ...cats.map((c) => ({ url: `${base}/building-materials/${c.slug}`, lastModified: now })),
@@ -39,6 +41,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: `${base}/building-materials/${x.category.slug}/${slugify(x.city!)}`,
       lastModified: now,
     })),
+    ...posts.map((x) => ({ url: `${base}/blog/${x.slug}`, lastModified: x.updatedAt })),
     ...products.map((p) => ({ url: `${base}/products/${p.id}`, lastModified: p.updatedAt })),
     ...orgs.map((o) => ({
       url: `${base}/${o.type === "STORE" ? "stores" : "suppliers"}/${o.slug}`,

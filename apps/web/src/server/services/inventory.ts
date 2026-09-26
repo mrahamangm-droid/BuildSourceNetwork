@@ -198,7 +198,7 @@ export type StockRow = {
 };
 
 /** One row per product (summed across warehouses). Products with no stock record show zero. */
-export async function listStock(ctx: Ctx, opts: { q?: string; lowOnly?: boolean } = {}): Promise<StockRow[]> {
+export async function listStock(ctx: Ctx, opts: { q?: string; lowOnly?: boolean; warehouseId?: string } = {}): Promise<StockRow[]> {
   guard(ctx);
   const products = await db.product.findMany({
     where: {
@@ -213,7 +213,10 @@ export async function listStock(ctx: Ctx, opts: { q?: string; lowOnly?: boolean 
       name: true,
       sku: true,
       unitCode: true,
-      inventory: { where: { orgId: ctx.orgId }, select: { onHand: true, reserved: true, reorderLevel: true } },
+      inventory: {
+        where: { orgId: ctx.orgId, ...(opts.warehouseId ? { warehouseId: opts.warehouseId } : {}) },
+        select: { onHand: true, reserved: true, reorderLevel: true },
+      },
     },
   });
   const rows = products.map((p) => {

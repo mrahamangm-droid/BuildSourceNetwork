@@ -4,7 +4,12 @@ import { notFound, redirect } from "next/navigation";
 import { requireCtx } from "@/server/access";
 import { getProject } from "@/server/services/projects";
 import { Badge, Button, Card, PageHeader } from "@/components/ui";
-import { AddItemForm, BoqRow, ProjectForm, StarterForm } from "@/components/dashboard/project-forms";
+import {
+  AddItemForm,
+  BoqRow,
+  ProjectForm,
+  StarterForm,
+} from "@/components/dashboard/project-forms";
 import { formatMoney } from "@/lib/utils";
 import {
   fromCents,
@@ -19,7 +24,8 @@ export const metadata: Metadata = { title: "Project" };
 
 export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireCtx();
-  if (!BUYER_TYPES.includes(ctx.orgType) || !roleHas(ctx.role, "project.manage")) redirect("/dashboard");
+  if (!BUYER_TYPES.includes(ctx.orgType) || !roleHas(ctx.role, "project.manage"))
+    redirect("/dashboard");
   const id = (await params).id;
   const data = await getProject(ctx, id); // org scoped
   if (!data) notFound();
@@ -30,7 +36,11 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
       <PageHeader
         title={p.name}
         description={p.city ?? undefined}
-        action={<Badge tone={p.status === "ACTIVE" ? "green" : "neutral"}>{PROJECT_STATUS_LABEL[p.status as ProjectStatusValue]}</Badge>}
+        action={
+          <Badge tone={p.status === "ACTIVE" ? "green" : "neutral"}>
+            {PROJECT_STATUS_LABEL[p.status as ProjectStatusValue]}
+          </Badge>
+        }
       />
       <p className="text-sm">
         <Link className="text-brand-700 hover:underline" href="/dashboard/projects">
@@ -42,16 +52,26 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
         <div className="rounded-xl border border-line p-4">
           <p className="text-xs uppercase text-muted">Estimated cost</p>
           <p className="mt-1 text-2xl font-bold">{money(s.totalCents)}</p>
-          {s.unpriced ? <p className="text-xs text-amber-700">{s.unpriced} lines have no rate yet, so the total is incomplete.</p> : null}
+          {s.unpriced ? (
+            <p className="text-xs text-amber-700">
+              {s.unpriced} lines have no rate yet, so the total is incomplete.
+            </p>
+          ) : null}
         </div>
         <div className="rounded-xl border border-line p-4">
           <p className="text-xs uppercase text-muted">Budget</p>
-          <p className="mt-1 text-2xl font-bold">{p.budget === null ? "—" : formatMoney(p.budget)}</p>
-          {s.budgetUsedPercent !== null ? <p className="text-xs text-muted">{s.budgetUsedPercent}% used</p> : null}
+          <p className="mt-1 text-2xl font-bold">
+            {p.budget === null ? "—" : formatMoney(p.budget)}
+          </p>
+          {s.budgetUsedPercent !== null ? (
+            <p className="text-xs text-muted">{s.budgetUsedPercent}% used</p>
+          ) : null}
         </div>
         <div className="rounded-xl border border-line p-4">
           <p className="text-xs uppercase text-muted">Remaining</p>
-          <p className={`mt-1 text-2xl font-bold ${s.varianceCents !== null && s.varianceCents < 0 ? "text-red-700" : ""}`}>
+          <p
+            className={`mt-1 text-2xl font-bold ${s.varianceCents !== null && s.varianceCents < 0 ? "text-red-700" : ""}`}
+          >
             {s.varianceCents === null ? "—" : money(s.varianceCents)}
           </p>
         </div>
@@ -61,19 +81,28 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Bill of quantities</h2>
           {s.itemCount ? (
-            <a className="text-sm text-brand-700 hover:underline" href={`/dashboard/projects/${id}/export`}>
+            <a
+              className="text-sm text-brand-700 hover:underline"
+              href={`/dashboard/projects/${id}/export`}
+            >
               Download CSV
             </a>
           ) : null}
         </div>
         {s.sections.length ? (
-          <form id="boq-rfq" action="/dashboard/rfqs/new" method="get" className="mb-3 flex flex-wrap items-center gap-3">
+          <form
+            id="boq-rfq"
+            action="/dashboard/rfqs/new"
+            method="get"
+            className="mb-3 flex flex-wrap items-center gap-3"
+          >
             <input type="hidden" name="projectId" value={id} />
             <Button type="submit" variant="outline" size="sm">
               Request quotes for ticked lines
             </Button>
             <span className="text-xs text-muted">
-              Tick material lines (up to 30). Works items such as excavation or formwork are not materials.
+              Tick material lines (up to 30). Works items such as excavation or formwork are not
+              materials.
             </span>
           </form>
         ) : null}
@@ -115,7 +144,9 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
             ))}
           </div>
         ) : (
-          <Card className="text-sm text-muted">No lines yet. Add them below or generate a starter bill.</Card>
+          <Card className="text-sm text-muted">
+            No lines yet. Add them below or generate a starter bill.
+          </Card>
         )}
       </section>
 

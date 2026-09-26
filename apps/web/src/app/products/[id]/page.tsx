@@ -9,7 +9,9 @@ import {
   StockBadge,
   VerifiedBadge,
 } from "@/components/market/parts";
-import { getPublicProduct } from "@/server/services/products";
+import { alternativesFor, getPublicProduct } from "@/server/services/products";
+import { SupplyChain } from "@/components/market/supply-chain";
+import { Alternatives } from "@/components/market/alternatives";
 import { appUrl, formatMoney, formatQty } from "@/lib/utils";
 import { savingsPercent } from "@/lib/pricing";
 
@@ -36,6 +38,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   const p = await getPublicProduct((await params).id);
   if (!p) notFound();
   const specs = (p.specifications ?? {}) as Record<string, string>;
+  const alternatives = await alternativesFor(p.id);
   const base = p.org.type === "STORE" ? "stores" : "suppliers";
   const availability =
     p.stockStatus === "OUT_OF_STOCK"
@@ -176,6 +179,9 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
               <VerifiedBadge status={p.org.verificationStatus} />
               <DemoBadge show={p.org.isDemo} />
             </div>
+            <div className="mt-3 border-t border-line pt-3">
+              <SupplyChain org={p.org} />
+            </div>
           </Card>
         </div>
       </div>
@@ -198,6 +204,24 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
           </dl>
         </section>
       ) : null}
+      <Alternatives
+        items={alternatives}
+        note={
+          p.stockStatus === "OUT_OF_STOCK"
+            ? "This item is out of stock. These comparable products are available now."
+            : undefined
+        }
+      />
+      <p className="mt-6 text-sm text-muted">
+        Need something different?{" "}
+        <Link
+          className="text-brand-700 hover:underline"
+          href={`/match?q=${encodeURIComponent(p.name)}${p.city ? `&city=${encodeURIComponent(p.city)}` : ""}`}
+        >
+          Try smart matching
+        </Link>
+        .
+      </p>
     </div>
   );
 }

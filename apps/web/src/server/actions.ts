@@ -352,6 +352,23 @@ export async function acceptQuoteAction(fd: FormData) {
   redirect(`/dashboard/orders/${orderId}?created=1`);
 }
 
+export async function awardSplitAction(fd: FormData) {
+  const rfqId = str(fd, "rfqId");
+  let target: string;
+  try {
+    const ctx = await requireCtx();
+    const picks = JSON.parse(str(fd, "assignments") || "[]") as unknown;
+    const made = await rfq.awardSplit(ctx, rfqId, { assignments: picks });
+    target = made.length === 1 ? `/dashboard/orders/${made[0]!.id}?created=1` : "/dashboard/orders";
+  } catch (e) {
+    const msg = e instanceof SyntaxError ? "Invalid selection" : fail(e).error;
+    redirect(
+      `/dashboard/rfqs/${rfqId}?error=${encodeURIComponent(msg ?? "Could not award the request")}`,
+    );
+  }
+  redirect(target);
+}
+
 // ───────── orders ─────────
 
 export async function advanceOrderAction(fd: FormData) {

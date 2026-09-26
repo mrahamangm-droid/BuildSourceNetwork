@@ -6,6 +6,7 @@ import { AppError } from "../errors";
 import { fieldErrorsFrom } from "./accounts";
 import { audit, notifyOrg } from "./notify";
 import { assertWithinLimit } from "./plans";
+import { summarizeAward } from "@/lib/split-award";
 
 const code = (prefix: string) => {
   const d = new Date().toISOString().slice(0, 10).replace(/-/g, "");
@@ -629,4 +630,155 @@ export async function acceptQuote(ctx: Ctx, quoteId: string) {
     href: `/dashboard/orders/${order.id}`,
   });
   return order;
+}
+
+// ───────────────────────── split award: one order per supplier ─────────────────────────
+
+const awardSchema = z.object({
+  assignments: z
+    .array(z.object({ rfqItemId: z.string().min(1), quoteId: z.string().min(1) }))
+    .min(1, "Choose a supplier for at least one item")
+    .max(200),
+});
+
+/**
+ * Award different lines of one RFQ to different suppliers. Each supplier that receives at least one
+ * line gets its own order (delivery charged once per order); every other quote is rejected and the
+ * RFQ closes. All or nothing, with the same double-accept guard as a normal acceptance.
+ */
+export async function awardSplit(ctx: Ctx, rfqId: string, raw: unknown) {
+  assertBuyer(ctx);
+  assertCan(ctx, "order.manage");
+  assertVerified(ctx);
+  const parsed = awardSchema.safeParse(raw);
+  if (!parsed.success)
+    throw new AppError(parsed.error.issues[0]?.message ?? "Invalid selection", "VALIDATION");
+  const picks = parsed.data.assignments;
+  if (new Set(picks.map((p) => p.rfqItemId)).size !== picks.length)
+    throw new AppError("Each item can only go to one supplier.", "VALIDATION");
+  const fee = Number(await getSetting("platformFeeBps", "100"));
+
+  const orders = await db.$transaction(
+    async (tx) => {
+      const rfq = await tx.rfq.findFirst({
+        where: { id: rfqId, buyerOrgId: ctx.orgId },
+        include: { items: true, quotes: { include: { items: true } } },
+      });
+      if (!rfq) throw new AppError("RFQ not found", "NOT_FOUND");
+      if (rfq.status !== "OPEN")
+        throw new AppError("This RFQ has already been closed.", "CONFLICT");
+
+      const now = new Date();
+      const assignment: Record<string, string> = {};
+      for (const p of picks) {
+        const item = rfq.items.find((i) => i.id === p.rfqItemId);
+        const quote = rfq.quotes.find((q) => q.id === p.quoteId);
+        if (!item || !quote) throw new AppError("Invalid selection", "VALIDATION");
+        if (quote.status !== "SUBMITTED" || quote.validUntil < now)
+          throw new AppError("A selected quote is no longer available.", "CONFLICT");
+        const offer = quote.items.find((i) => i.rfqItemId === item.id);
+        if (!offer || Number(offer.quantityAvailable) <= 0)
+          throw new AppError(`The selected supplier has no stock for “${item.name}”.`, "CONFLICT");
+        assignment[item.id] = quote.id;
+      }
+
+      const summary = summarizeAward(
+        rfq.items.map((i) => ({ id: i.id, name: i.name, quantity: Number(i.quantity) })),
+        rfq.quotes.map((q) => ({ id: q.id, deliveryCost: Number(q.deliveryCost) })),
+        rfq.quotes.flatMap((q) =>
+          q.items.map((i) => ({
+            quoteId: q.id,
+            rfqItemId: i.rfqItemId,
+            unitPrice: Number(i.unitPrice),
+            quantityAvailable: Number(i.quantityAvailable),
+          })),
+        ),
+        assignment,
+      );
+      if (!summary.orders.length)
+        throw new AppError("None of the selected suppliers has quantity available.", "CONFLICT");
+
+      const flipped = await tx.rfq.updateMany({
+        where: { id: rfq.id, status: "OPEN" },
+        data: { status: "ACCEPTED" },
+      });
+      if (flipped.count !== 1) throw new AppError("This RFQ has already been closed.", "CONFLICT");
+
+      const awarded = new Set(summary.orders.map((o) => o.quoteId));
+      await tx.quote.updateMany({
+        where: { id: { in: [...awarded] } },
+        data: { status: "ACCEPTED" },
+      });
+      await tx.quote.updateMany({
+        where: { rfqId: rfq.id, id: { notIn: [...awarded] }, status: "SUBMITTED" },
+        data: { status: "REJECTED" },
+      });
+      await tx.rfqRecipient.updateMany({
+        where: { rfqId: rfq.id, status: { in: ["SENT", "VIEWED"] } },
+        data: { status: "EXPIRED" },
+      });
+
+      const created = [];
+      for (const plan of summary.orders) {
+        const quote = rfq.quotes.find((q) => q.id === plan.quoteId)!;
+        const unitOf = new Map(rfq.items.map((i) => [i.id, i.unitCode]));
+        created.push(
+          await tx.order.create({
+            data: {
+              number: newOrderNumber(),
+              buyerOrgId: ctx.orgId,
+              supplierOrgId: quote.supplierOrgId,
+              rfqId: rfq.id,
+              quoteId: quote.id,
+              createdById: ctx.userId,
+              currency: quote.currency,
+              subtotal: plan.subtotal,
+              deliveryCost: plan.deliveryCost,
+              totalAmount: plan.total,
+              platformFeeBps: fee,
+              deliveryCity: rfq.deliveryCity,
+              deliveryAddress: rfq.deliveryAddress,
+              requiredDate: rfq.requiredDate,
+              items: {
+                create: plan.lines.map((l) => ({
+                  name: l.name,
+                  quantity: l.quantity,
+                  unitCode: unitOf.get(l.rfqItemId)!,
+                  unitPrice: l.unitPrice,
+                  lineTotal: l.lineTotal,
+                })),
+              },
+              events: {
+                create: {
+                  status: "ORDER_CREATED",
+                  actorId: ctx.userId,
+                  note: "Awarded in a split award",
+                },
+              },
+            },
+          }),
+        );
+      }
+      return created;
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  );
+
+  await audit({
+    orgId: ctx.orgId,
+    actorId: ctx.userId,
+    action: "rfq.split_awarded",
+    entity: "Rfq",
+    entityId: rfqId,
+    meta: { orders: orders.map((o) => o.number) },
+  });
+  for (const order of orders)
+    await notifyOrg({
+      orgId: order.supplierOrgId,
+      type: "quote.accepted",
+      title: `Quote accepted — order ${order.number}`,
+      body: "Part of an RFQ was awarded to you. Please confirm the order.",
+      href: `/dashboard/orders/${order.id}`,
+    });
+  return orders;
 }

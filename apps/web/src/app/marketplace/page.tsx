@@ -142,7 +142,8 @@ export default async function MarketplacePage({ searchParams }: { searchParams: 
     minPrice: num(sp.minPrice),
     maxPrice: num(sp.maxPrice),
     maxMoq: num(sp.maxMoq),
-    sort: (["price_asc", "price_desc", "newest"].includes(sp.sort ?? "")
+    minRating: [1, 2, 3, 4].includes(Number(sp.minRating)) ? Number(sp.minRating) : undefined,
+    sort: (["price_asc", "price_desc", "newest", "rating"].includes(sp.sort ?? "")
       ? sp.sort
       : "relevance") as SearchFilters["sort"],
     page: Number(sp.page) || 1,
@@ -299,12 +300,22 @@ export default async function MarketplacePage({ searchParams }: { searchParams: 
             />
           </div>
           <div>
+            <Label htmlFor="minRating">Customer rating</Label>
+            <Select id="minRating" name="minRating" defaultValue={sp.minRating ?? ""}>
+              <option value="">Any rating</option>
+              <option value="4">4 stars &amp; up</option>
+              <option value="3">3 stars &amp; up</option>
+              <option value="2">2 stars &amp; up</option>
+            </Select>
+          </div>
+          <div>
             <Label htmlFor="sort">Sort by</Label>
             <Select id="sort" name="sort" defaultValue={sp.sort ?? "relevance"}>
               <option value="relevance">Relevance</option>
               <option value="price_asc">Price: low to high</option>
               <option value="price_desc">Price: high to low</option>
               <option value="newest">Newest</option>
+              <option value="rating">Top rated</option>
             </Select>
           </div>
           <label className="flex items-center gap-2">

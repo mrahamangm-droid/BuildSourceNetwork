@@ -14,6 +14,10 @@ import { SupplyChain } from "@/components/market/supply-chain";
 import { Alternatives } from "@/components/market/alternatives";
 import { appUrl, formatMoney, formatQty } from "@/lib/utils";
 import { savingsPercent } from "@/lib/pricing";
+import { getCtx } from "@/server/access";
+import { ProductReviews } from "@/components/market/product-reviews";
+import { RatingLine } from "@/components/market/stars";
+import type { ReviewSort } from "@/server/services/reviews";
 
 export const dynamic = "force-dynamic";
 
@@ -34,11 +38,21 @@ export async function generateMetadata({
   };
 }
 
-export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ProductPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ rsort?: string; rpage?: string }>;
+}) {
+  const sp = await searchParams;
+  const rsort = (
+    ["newest", "highest", "lowest"].includes(sp.rsort ?? "") ? sp.rsort : "helpful"
+  ) as ReviewSort;
   const p = await getPublicProduct((await params).id);
   if (!p) notFound();
   const specs = (p.specifications ?? {}) as Record<string, string>;
-  const alternatives = await alternativesFor(p.id);
+  const [alternatives, ctx] = await Promise.all([alternativesFor(p.id), getCtx()]);
   const base = p.org.type === "STORE" ? "stores" : "suppliers";
   const availability =
     p.stockStatus === "OUT_OF_STOCK"
@@ -60,6 +74,14 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
           material: p.material ?? undefined,
           color: p.color ?? undefined,
           image: p.images.map((i) => i.url),
+          aggregateRating:
+            p.ratingCount > 0 && p.ratingAvg != null
+              ? {
+                  "@type": "AggregateRating",
+                  ratingValue: Number(p.ratingAvg.toString()),
+                  reviewCount: p.ratingCount,
+                }
+              : undefined,
           offers: {
             "@type": "Offer",
             price: p.price.toString(),
@@ -102,6 +124,12 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
             {p.category.name}
             {p.sku ? ` · SKU ${p.sku}` : ""}
           </p>
+          <a href="#reviews" className="mt-1 block">
+            <RatingLine
+              avg={p.ratingAvg == null ? null : Number(p.ratingAvg.toString())}
+              count={p.ratingCount}
+            />
+          </a>
           <p className="mt-4 text-3xl font-bold">
             {formatMoney(p.price.toString(), p.currency)}{" "}
             <span className="text-base font-normal text-muted">
@@ -229,6 +257,18 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
           </dl>
         </section>
       ) : null}
+      <ProductReviews
+        product={{
+          id: p.id,
+          orgId: p.orgId,
+          brandId: p.brandId,
+          manufacturerId: p.manufacturerId,
+        }}
+        ctx={ctx}
+        sort={rsort}
+        page={Math.max(1, Number(sp.rpage) || 1)}
+        basePath={`/products/${p.id}`}
+      />
       <Alternatives
         items={alternatives}
         note={

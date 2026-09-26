@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Badge, Card } from "@/components/ui";
 import { formatMoney, formatQty } from "@/lib/utils";
+import { RatingLine } from "@/components/market/stars";
 import { DEMO_LABEL, SUPPLIER_KIND_LABEL, type SupplierKind } from "@bmn/config";
 
 export function VerifiedBadge({ status }: { status: string }) {
@@ -36,6 +37,8 @@ export type ProductCardData = {
   deliveryAvailable: boolean;
   isDemo: boolean;
   packageSize: string | null;
+  ratingAvg?: { toString(): string } | null;
+  ratingCount?: number;
   unit: { name: string };
   category: { name: string };
   brand: { name: string } | null;
@@ -80,6 +83,10 @@ export function ProductCard({ p }: { p: ProductCardData }) {
           </Link>
           {p.city ? ` · ${p.city}` : ""}
         </p>
+        <RatingLine
+          avg={p.ratingAvg == null ? null : Number(p.ratingAvg.toString())}
+          count={p.ratingCount ?? 0}
+        />
         <div className="mt-auto pt-2">
           <p className="text-lg font-bold">
             {formatMoney(p.price.toString(), p.currency)}{" "}

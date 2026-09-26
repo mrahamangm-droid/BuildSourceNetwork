@@ -34,7 +34,7 @@ export async function OrgProfile({
   const [products, reviews] = await Promise.all([
     searchProducts({ supplier: slug, pageSize: 12 }),
     db.review.findMany({
-      where: { subjectOrgId: org.id },
+      where: { subjectOrgId: org.id, status: "PUBLISHED" },
       orderBy: { createdAt: "desc" },
       take: 5,
       include: { authorOrg: { select: { name: true } } },
@@ -140,7 +140,29 @@ export async function OrgProfile({
                       {"☆".repeat(5 - r.rating)}{" "}
                       <span className="font-normal text-muted">· {r.authorOrg.name}</span>
                     </p>
+                    {r.title ? <p className="mt-1 text-sm font-medium">{r.title}</p> : null}
                     {r.comment ? <p className="mt-1 text-sm text-slate-700">{r.comment}</p> : null}
+                    {r.photos.length ? (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {r.photos.map((u) => (
+                          <a key={u} href={u} target="_blank" rel="noopener noreferrer">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={u}
+                              alt="Photo from the reviewer"
+                              loading="lazy"
+                              className="h-16 w-16 rounded-lg border border-line object-cover"
+                            />
+                          </a>
+                        ))}
+                      </div>
+                    ) : null}
+                    {r.reply ? (
+                      <p className="mt-2 rounded-lg bg-surface p-2 text-sm">
+                        <span className="text-xs font-semibold text-muted">Supplier reply: </span>
+                        {r.reply}
+                      </p>
+                    ) : null}
                   </Card>
                 ))}
               </div>

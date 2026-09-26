@@ -4,6 +4,7 @@ import { logoutAction } from "@/server/actions";
 import { db } from "@bmn/database";
 import { LinkButton, Button } from "@/components/ui";
 import { BUYER_TYPES } from "@bmn/config";
+import { Logo } from "@/components/layout/logo";
 
 export async function SiteHeader() {
   const ctx = await getCtx();
@@ -28,12 +29,7 @@ export async function SiteHeader() {
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-white/95 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4">
-        <Link href="/" className="flex items-center gap-2 font-bold tracking-tight">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-600 text-white">
-            B
-          </span>
-          <span className="hidden sm:inline">Building Materials Network</span>
-        </Link>
+        <Logo hideWordmarkOnMobile />
         <nav
           aria-label="Main"
           className="ml-4 hidden items-center gap-5 text-sm font-medium md:flex"

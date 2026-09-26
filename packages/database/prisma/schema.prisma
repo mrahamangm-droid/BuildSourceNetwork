@@ -18,6 +18,11 @@ enum SupplierKind {
   WHOLESALER
 }
 
+enum BlogStatus {
+  DRAFT
+  PUBLISHED
+}
+
 enum OrgType {
   SUPPLIER
   STORE
@@ -115,6 +120,7 @@ model User {
   updatedAt       DateTime  @updatedAt
 
   memberships   OrganizationMember[]
+  blogPosts     BlogPost[]
   tokens        AuthToken[]
   notifications Notification[]
   auditLogs     AuditLog[]
@@ -864,4 +870,22 @@ model RfqAttachment {
   rfq Rfq @relation(fields: [rfqId], references: [id], onDelete: Cascade)
 
   @@index([rfqId])
+}
+
+model BlogPost {
+  id          String     @id @default(cuid())
+  slug        String     @unique
+  title       String
+  excerpt     String
+  body        String
+  tags        String[]
+  status      BlogStatus @default(DRAFT)
+  publishedAt DateTime?
+  authorId    String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([status, publishedAt])
 }

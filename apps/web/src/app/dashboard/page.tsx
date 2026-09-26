@@ -5,6 +5,8 @@ import { dashboardStats } from "@/server/services/orders";
 import { db } from "@bmn/database";
 import { Alert, Card, LinkButton, PageHeader } from "@/components/ui";
 import { formatMoney } from "@/lib/utils";
+import { getOnboarding } from "@/server/services/onboarding";
+import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -31,7 +33,9 @@ export default async function DashboardPage({
     select: { currency: true, description: true, phone: true, logoUrl: true },
   });
   const isSupplier = ctx.orgType === "SUPPLIER";
-  const profileIncomplete = !org.description || !org.phone;
+  const onboarding = await getOnboarding(ctx);
+  const showOnboarding = !!onboarding && onboarding.done < onboarding.total;
+  const profileIncomplete = !showOnboarding && (!org.description || !org.phone);
 
   return (
     <div>
@@ -58,6 +62,11 @@ export default async function DashboardPage({
               ? " Start by adding your products so buyers can find you."
               : " Search the marketplace or request quotes to get going."}
           </Alert>
+        </div>
+      ) : null}
+      {showOnboarding && onboarding ? (
+        <div className="mb-4">
+          <OnboardingChecklist {...onboarding} />
         </div>
       ) : null}
       {profileIncomplete ? (

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Badge, Card } from "@/components/ui";
 import { formatMoney, formatQty } from "@/lib/utils";
 import { RatingLine } from "@/components/market/stars";
+import { CompareToggle } from "@/components/market/compare-toggle";
 import { DEMO_LABEL, SUPPLIER_KIND_LABEL, type SupplierKind } from "@bmn/config";
 
 export function VerifiedBadge({ status }: { status: string }) {
@@ -96,6 +97,7 @@ export function ProductCard({ p }: { p: ProductCardData }) {
             MOQ {formatQty(p.minOrderQty)}
             {p.deliveryAvailable ? " · Delivery available" : ""}
           </p>
+          <CompareToggle id={p.id} className="mt-2" />
         </div>
       </div>
     </Card>

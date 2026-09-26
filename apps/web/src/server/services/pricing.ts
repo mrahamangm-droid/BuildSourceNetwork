@@ -54,7 +54,11 @@ export async function saveBreaks(ctx: Ctx, productId: string, raw: RawRow[]) {
   await db.$transaction([
     db.priceBreak.deleteMany({ where: { productId } }),
     db.priceBreak.createMany({
-      data: sorted.map((b) => ({ productId, minQty: b.minQty.toFixed(3), price: b.price.toFixed(2) })),
+      data: sorted.map((b) => ({
+        productId,
+        minQty: b.minQty.toFixed(3),
+        price: b.price.toFixed(2),
+      })),
     }),
   ]);
   await audit({

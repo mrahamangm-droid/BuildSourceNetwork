@@ -7,7 +7,15 @@ import { parseTags, slugify } from "@/lib/markdown";
 import { postSchema } from "@/lib/blog";
 import { STARTER_POSTS } from "@/lib/blog-starters";
 
-const PUBLIC = { id: true, slug: true, title: true, excerpt: true, tags: true, publishedAt: true, updatedAt: true } as const;
+const PUBLIC = {
+  id: true,
+  slug: true,
+  title: true,
+  excerpt: true,
+  tags: true,
+  publishedAt: true,
+  updatedAt: true,
+} as const;
 
 // ───────── public ─────────
 
@@ -65,11 +73,17 @@ export async function savePost(actor: AdminActor, id: string | null, raw: unknow
   assertAdmin(actor);
   const p = postSchema.safeParse(raw);
   if (!p.success)
-    throw new AppError("Please fix the highlighted fields.", "VALIDATION", fieldErrorsFrom(p.error));
+    throw new AppError(
+      "Please fix the highlighted fields.",
+      "VALIDATION",
+      fieldErrorsFrom(p.error),
+    );
   const d = p.data;
   const slug = slugify(d.slug || d.title);
   if (!slug)
-    throw new AppError("Please fix the highlighted fields.", "VALIDATION", { slug: "Use letters or numbers" });
+    throw new AppError("Please fix the highlighted fields.", "VALIDATION", {
+      slug: "Use letters or numbers",
+    });
   const clash = await db.blogPost.findUnique({ where: { slug }, select: { id: true } });
   if (clash && clash.id !== id)
     throw new AppError("Please fix the highlighted fields.", "VALIDATION", {
@@ -97,7 +111,10 @@ export async function savePost(actor: AdminActor, id: string | null, raw: unknow
 /** The first publication date is kept when a post is unpublished and published again. */
 export async function setPublished(actor: AdminActor, id: string, publish: boolean) {
   assertAdmin(actor);
-  const post = await db.blogPost.findUnique({ where: { id }, select: { id: true, publishedAt: true } });
+  const post = await db.blogPost.findUnique({
+    where: { id },
+    select: { id: true, publishedAt: true },
+  });
   if (!post) throw new AppError("Article not found.", "NOT_FOUND");
   await db.blogPost.update({
     where: { id },
@@ -117,9 +134,12 @@ export async function setPublished(actor: AdminActor, id: string, publish: boole
 export async function importStarters(actor: AdminActor) {
   assertAdmin(actor);
   const existing = new Set(
-    (await db.blogPost.findMany({ where: { slug: { in: STARTER_POSTS.map((s) => s.slug) } }, select: { slug: true } })).map(
-      (r) => r.slug,
-    ),
+    (
+      await db.blogPost.findMany({
+        where: { slug: { in: STARTER_POSTS.map((s) => s.slug) } },
+        select: { slug: true },
+      })
+    ).map((r) => r.slug),
   );
   const fresh = STARTER_POSTS.filter((s) => !existing.has(s.slug));
   if (fresh.length)
@@ -127,6 +147,10 @@ export async function importStarters(actor: AdminActor) {
       data: fresh.map((s) => ({ ...s, authorId: actor.userId, status: "DRAFT" as const })),
       skipDuplicates: true,
     });
-  await audit({ actorId: actor.userId, action: "blog.starters_imported", meta: { added: fresh.length } });
+  await audit({
+    actorId: actor.userId,
+    action: "blog.starters_imported",
+    meta: { added: fresh.length },
+  });
   return fresh.length;
 }

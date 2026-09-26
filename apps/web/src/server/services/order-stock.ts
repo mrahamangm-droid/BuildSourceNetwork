@@ -40,7 +40,13 @@ function asAppError(e: unknown, productName?: string): never {
 type OrderWithItems = Awaited<ReturnType<typeof supplierOrder>>;
 
 /** Releases (and for "issue", then issues) every RESERVED line. Returns how many lines changed. */
-async function transition(tx: Tx, actor: Actor, order: OrderWithItems, action: "issue" | "release", note: string) {
+async function transition(
+  tx: Tx,
+  actor: Actor,
+  order: OrderWithItems,
+  action: "issue" | "release",
+  note: string,
+) {
   let changed = 0;
   for (const item of order.items) {
     const target = nextState(item.stockState, action);
@@ -105,7 +111,10 @@ export async function reserveOrderStock(
   const n = await db.$transaction(async (tx) => {
     const order = await supplierOrder(tx, ctx.orgId, orderId);
     if (!(RESERVABLE_ORDER_STATUSES as readonly string[]).includes(order.status))
-      throw new AppError("Stock can be reserved once the order is confirmed and until it is dispatched.", "FORBIDDEN");
+      throw new AppError(
+        "Stock can be reserved once the order is confirmed and until it is dispatched.",
+        "FORBIDDEN",
+      );
     let done = 0;
     for (const item of order.items) {
       const productId = mapping[item.id];
@@ -140,7 +149,10 @@ export async function reserveOrderStock(
       done++;
     }
     if (!done)
-      throw new AppError("Choose a product for at least one line that is not already reserved.", "VALIDATION");
+      throw new AppError(
+        "Choose a product for at least one line that is not already reserved.",
+        "VALIDATION",
+      );
     return done;
   }, SERIAL);
   await audit({
@@ -160,7 +172,13 @@ async function manual(ctx: Ctx, orderId: string, action: "issue" | "release") {
     const order = await supplierOrder(tx, ctx.orgId, orderId);
     if (action === "issue" && order.status === "CANCELLED")
       throw new AppError("This order is cancelled. Release the reservation instead.", "FORBIDDEN");
-    const changed = await transition(tx, ctx, order, action, `${action === "issue" ? "Issued" : "Released"} for order ${order.number}`);
+    const changed = await transition(
+      tx,
+      ctx,
+      order,
+      action,
+      `${action === "issue" ? "Issued" : "Released"} for order ${order.number}`,
+    );
     if (!changed) throw new AppError("There is no reserved stock on this order.", "VALIDATION");
     return changed;
   }, SERIAL);
@@ -187,7 +205,10 @@ export const releaseOrderStock = (ctx: Ctx, orderId: string) => manual(ctx, orde
 export async function syncOrderStock(orderId: string, orderStatus: string) {
   const action = autoActionFor(orderStatus);
   if (!action) return;
-  const order0 = await db.order.findUnique({ where: { id: orderId }, select: { supplierOrgId: true } });
+  const order0 = await db.order.findUnique({
+    where: { id: orderId },
+    select: { supplierOrgId: true },
+  });
   if (!order0) return;
   const actor: Actor = { orgId: order0.supplierOrgId, userId: null };
   try {
@@ -204,7 +225,11 @@ export async function syncOrderStock(orderId: string, orderStatus: string) {
         meta: { lines: n, orderStatus },
       });
   } catch (e) {
-    console.error("[order-stock] automatic sync failed", orderId, e instanceof Error ? e.message : e);
+    console.error(
+      "[order-stock] automatic sync failed",
+      orderId,
+      e instanceof Error ? e.message : e,
+    );
     await audit({
       orgId: actor.orgId,
       action: "order.stock_sync_failed",

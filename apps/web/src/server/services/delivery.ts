@@ -36,7 +36,11 @@ export const proofSchema = z.object({
 function parse<T extends z.ZodType>(schema: T, raw: unknown): z.infer<T> {
   const r = schema.safeParse(raw);
   if (!r.success)
-    throw new AppError("Please fix the highlighted fields.", "VALIDATION", fieldErrorsFrom(r.error));
+    throw new AppError(
+      "Please fix the highlighted fields.",
+      "VALIDATION",
+      fieldErrorsFrom(r.error),
+    );
   return r.data;
 }
 
@@ -53,7 +57,14 @@ async function supplierOrder(ctx: Ctx, orderId: string) {
   assertVerified(ctx);
   const order = await db.order.findFirst({
     where: { id: orderId, supplierOrgId: ctx.orgId },
-    select: { id: true, number: true, status: true, buyerOrgId: true, deliveryAddress: true, deliveryCity: true },
+    select: {
+      id: true,
+      number: true,
+      status: true,
+      buyerOrgId: true,
+      deliveryAddress: true,
+      deliveryCity: true,
+    },
   });
   if (!order) throw new AppError("Order not found", "NOT_FOUND");
   return order;
@@ -97,12 +108,20 @@ export async function scheduleDelivery(ctx: Ctx, orderId: string, raw: unknown) 
       notes: input.notes || null,
     },
   });
-  await audit({ orgId: ctx.orgId, actorId: ctx.userId, action: "delivery.schedule", entity: "Delivery", entityId: d.id });
+  await audit({
+    orgId: ctx.orgId,
+    actorId: ctx.userId,
+    action: "delivery.schedule",
+    entity: "Delivery",
+    entityId: d.id,
+  });
   await notifyOrg({
     orgId: order.buyerOrgId,
     type: "delivery.scheduled",
     title: `Order ${order.number}: delivery scheduled for ${fmtWhen(when)}`,
-    body: input.driverName ? `Driver: ${input.driverName}${input.vehicle ? ` (${input.vehicle})` : ""}` : undefined,
+    body: input.driverName
+      ? `Driver: ${input.driverName}${input.vehicle ? ` (${input.vehicle})` : ""}`
+      : undefined,
     href: `/dashboard/orders/${orderId}`,
   });
   return d;
@@ -112,7 +131,8 @@ export async function scheduleDelivery(ctx: Ctx, orderId: string, raw: unknown) 
 export async function updateDelivery(ctx: Ctx, deliveryId: string, raw: unknown) {
   const input = parse(deliverySchema, raw);
   const d = await supplierDelivery(ctx, deliveryId);
-  if (d.status === "DELIVERED") throw new AppError("This delivery is already completed.", "FORBIDDEN");
+  if (d.status === "DELIVERED")
+    throw new AppError("This delivery is already completed.", "FORBIDDEN");
   const when = parseWhen(input.scheduledAt);
   const res = await db.delivery.updateMany({
     where: { id: deliveryId, status: d.status },
@@ -127,8 +147,17 @@ export async function updateDelivery(ctx: Ctx, deliveryId: string, raw: unknown)
     },
   });
   if (res.count !== 1)
-    throw new AppError("The delivery was updated by someone else. Refresh and try again.", "CONFLICT");
-  await audit({ orgId: ctx.orgId, actorId: ctx.userId, action: "delivery.update", entity: "Delivery", entityId: deliveryId });
+    throw new AppError(
+      "The delivery was updated by someone else. Refresh and try again.",
+      "CONFLICT",
+    );
+  await audit({
+    orgId: ctx.orgId,
+    actorId: ctx.userId,
+    action: "delivery.update",
+    entity: "Delivery",
+    entityId: deliveryId,
+  });
   await notifyOrg({
     orgId: d.order.buyerOrgId,
     type: "delivery.updated",
@@ -147,7 +176,11 @@ export async function advanceDelivery(
   const d = await supplierDelivery(ctx, deliveryId);
   const proof = target === "DELIVERED" ? parse(proofSchema, rawProof) : null;
   const problem = checkTransition(
-    { status: d.status as DeliveryStatusValue, driverName: d.driverName, recipientName: proof?.recipientName },
+    {
+      status: d.status as DeliveryStatusValue,
+      driverName: d.driverName,
+      recipientName: proof?.recipientName,
+    },
     target,
   );
   if (problem) throw new AppError(problem, "VALIDATION");
@@ -171,33 +204,67 @@ export async function advanceDelivery(
             : { status: target },
     });
     if (res.count !== 1)
-      throw new AppError("The delivery was updated by someone else. Refresh and try again.", "CONFLICT");
+      throw new AppError(
+        "The delivery was updated by someone else. Refresh and try again.",
+        "CONFLICT",
+      );
 
     // Keep the order in step with its deliveries.
     if (target === "OUT_FOR_DELIVERY" && d.order.status === "PREPARING") {
-      const o = await tx.order.updateMany({ where: { id: d.order.id, status: "PREPARING" }, data: { status: "DISPATCHED" } });
+      const o = await tx.order.updateMany({
+        where: { id: d.order.id, status: "PREPARING" },
+        data: { status: "DISPATCHED" },
+      });
       if (o.count === 1)
-        await tx.orderEvent.create({ data: { orderId: d.order.id, status: "DISPATCHED", actorId: ctx.userId, note: "Delivery out for delivery" } });
+        await tx.orderEvent.create({
+          data: {
+            orderId: d.order.id,
+            status: "DISPATCHED",
+            actorId: ctx.userId,
+            note: "Delivery out for delivery",
+          },
+        });
     }
     if (target === "DELIVERED" && d.order.status === "DISPATCHED") {
-      const open = await tx.delivery.count({ where: { orderId: d.order.id, status: { not: "DELIVERED" } } });
+      const open = await tx.delivery.count({
+        where: { orderId: d.order.id, status: { not: "DELIVERED" } },
+      });
       if (open === 0) {
-        const o = await tx.order.updateMany({ where: { id: d.order.id, status: "DISPATCHED" }, data: { status: "DELIVERED" } });
+        const o = await tx.order.updateMany({
+          where: { id: d.order.id, status: "DISPATCHED" },
+          data: { status: "DELIVERED" },
+        });
         if (o.count === 1)
-          await tx.orderEvent.create({ data: { orderId: d.order.id, status: "DELIVERED", actorId: ctx.userId, note: `Received by ${proof!.recipientName}` } });
+          await tx.orderEvent.create({
+            data: {
+              orderId: d.order.id,
+              status: "DELIVERED",
+              actorId: ctx.userId,
+              note: `Received by ${proof!.recipientName}`,
+            },
+          });
       }
     }
   });
 
   // Sending a delivery out dispatches the order, so reserved goods leave stock (idempotent).
   if (target === "OUT_FOR_DELIVERY") await syncOrderStock(d.order.id, "DISPATCHED");
-  await audit({ orgId: ctx.orgId, actorId: ctx.userId, action: `delivery.${target.toLowerCase()}`, entity: "Delivery", entityId: deliveryId });
+  await audit({
+    orgId: ctx.orgId,
+    actorId: ctx.userId,
+    action: `delivery.${target.toLowerCase()}`,
+    entity: "Delivery",
+    entityId: deliveryId,
+  });
   if (target !== "ASSIGNED")
     await notifyOrg({
       orgId: d.order.buyerOrgId,
       type: "delivery.status",
       title: `Order ${d.order.number}: ${DELIVERY_LABEL[target]}`,
-      body: target === "DELIVERED" ? `Received by ${proof!.recipientName}. Please confirm receipt on the order page.` : undefined,
+      body:
+        target === "DELIVERED"
+          ? `Received by ${proof!.recipientName}. Please confirm receipt on the order page.`
+          : undefined,
       href: `/dashboard/orders/${d.order.id}`,
     });
 }

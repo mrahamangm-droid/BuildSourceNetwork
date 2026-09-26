@@ -90,7 +90,6 @@ export async function moveInTx(
   kind: MovementKind,
   d: MovementInput,
 ) {
-
   const product = await tx.product.findFirst({
     where: { id: d.productId, orgId: actor.orgId },
     select: { id: true, name: true },
@@ -132,7 +131,6 @@ export async function moveInTx(
   });
   await syncProductStatus(tx, actor.orgId, product.id);
   return { productName: product.name, onHand: fromMilli(balance.onHand), warehouseId: wh.id };
-
 }
 
 /** Every stock change runs here: lock-free but Serializable, so concurrent issues cannot oversell. */
@@ -140,7 +138,11 @@ export async function move(ctx: Ctx, kind: MovementKind, raw: unknown) {
   guard(ctx);
   const parsed = movementSchema.safeParse(raw);
   if (!parsed.success)
-    throw new AppError("Please fix the highlighted fields.", "VALIDATION", fieldErrorsFrom(parsed.error));
+    throw new AppError(
+      "Please fix the highlighted fields.",
+      "VALIDATION",
+      fieldErrorsFrom(parsed.error),
+    );
   const d = parsed.data;
 
   try {
@@ -157,7 +159,8 @@ export async function move(ctx: Ctx, kind: MovementKind, raw: unknown) {
     });
     return result;
   } catch (e) {
-    if (e instanceof StockError) throw new AppError(e.message, "VALIDATION", { quantity: e.message });
+    if (e instanceof StockError)
+      throw new AppError(e.message, "VALIDATION", { quantity: e.message });
     throw e;
   }
 }
@@ -168,12 +171,22 @@ export const adjustStock = (ctx: Ctx, raw: unknown) => move(ctx, "ADJUSTMENT", r
 export const reserveStock = (ctx: Ctx, raw: unknown) => move(ctx, "RESERVE", raw);
 export const releaseStock = (ctx: Ctx, raw: unknown) => move(ctx, "RELEASE", raw);
 
-export async function setReorderLevel(ctx: Ctx, productId: string, warehouseId: string | undefined, level: number) {
+export async function setReorderLevel(
+  ctx: Ctx,
+  productId: string,
+  warehouseId: string | undefined,
+  level: number,
+) {
   guard(ctx);
   if (!Number.isFinite(level) || level < 0 || level > 1e9)
-    throw new AppError("Enter a reorder level of 0 or more.", "VALIDATION", { reorderLevel: "Enter 0 or more" });
+    throw new AppError("Enter a reorder level of 0 or more.", "VALIDATION", {
+      reorderLevel: "Enter 0 or more",
+    });
   await db.$transaction(async (tx) => {
-    const product = await tx.product.findFirst({ where: { id: productId, orgId: ctx.orgId }, select: { id: true } });
+    const product = await tx.product.findFirst({
+      where: { id: productId, orgId: ctx.orgId },
+      select: { id: true },
+    });
     if (!product) throw new AppError("Product not found.", "NOT_FOUND");
     const wh = await ownedWarehouse(ctx, tx, warehouseId);
     await tx.inventoryItem.upsert({
@@ -198,13 +211,23 @@ export type StockRow = {
 };
 
 /** One row per product (summed across warehouses). Products with no stock record show zero. */
-export async function listStock(ctx: Ctx, opts: { q?: string; lowOnly?: boolean; warehouseId?: string } = {}): Promise<StockRow[]> {
+export async function listStock(
+  ctx: Ctx,
+  opts: { q?: string; lowOnly?: boolean; warehouseId?: string } = {},
+): Promise<StockRow[]> {
   guard(ctx);
   const products = await db.product.findMany({
     where: {
       orgId: ctx.orgId,
       isActive: true,
-      ...(opts.q ? { OR: [{ name: { contains: opts.q, mode: "insensitive" } }, { sku: { contains: opts.q, mode: "insensitive" } }] } : {}),
+      ...(opts.q
+        ? {
+            OR: [
+              { name: { contains: opts.q, mode: "insensitive" } },
+              { sku: { contains: opts.q, mode: "insensitive" } },
+            ],
+          }
+        : {}),
     },
     orderBy: { name: "asc" },
     take: 500,
@@ -244,6 +267,9 @@ export async function listMovements(ctx: Ctx, opts: { productId?: string; take?:
     where: { orgId: ctx.orgId, ...(opts.productId ? { productId: opts.productId } : {}) },
     orderBy: { createdAt: "desc" },
     take: Math.min(opts.take ?? 50, 200),
-    include: { product: { select: { name: true, unitCode: true } }, warehouse: { select: { name: true } } },
+    include: {
+      product: { select: { name: true, unitCode: true } },
+      warehouse: { select: { name: true } },
+    },
   });
 }

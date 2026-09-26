@@ -47,7 +47,11 @@ export async function listBranches(ctx: Ctx) {
       where: { orgId: ctx.orgId, onHand: { gt: 0 } },
       _count: { _all: true },
     }),
-    db.stockMovement.groupBy({ by: ["warehouseId"], where: { orgId: ctx.orgId }, _count: { _all: true } }),
+    db.stockMovement.groupBy({
+      by: ["warehouseId"],
+      where: { orgId: ctx.orgId },
+      _count: { _all: true },
+    }),
     db.orderItem.groupBy({
       by: ["stockWarehouseId"],
       where: { stockWarehouseId: { not: null }, order: { supplierOrgId: ctx.orgId } },
@@ -103,7 +107,13 @@ export async function createBranch(ctx: Ctx, raw: unknown) {
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
-  await audit({ orgId: ctx.orgId, actorId: ctx.userId, action: "branch.created", entity: "Branch", entityId: b.id });
+  await audit({
+    orgId: ctx.orgId,
+    actorId: ctx.userId,
+    action: "branch.created",
+    entity: "Branch",
+    entityId: b.id,
+  });
   return b;
 }
 
@@ -122,12 +132,21 @@ export async function updateBranch(ctx: Ctx, id: string, raw: unknown) {
     where: { id },
     data: { name: p.data.name, city: p.data.city || null, address: p.data.address || null },
   });
-  await audit({ orgId: ctx.orgId, actorId: ctx.userId, action: "branch.updated", entity: "Branch", entityId: id });
+  await audit({
+    orgId: ctx.orgId,
+    actorId: ctx.userId,
+    action: "branch.updated",
+    entity: "Branch",
+    entityId: id,
+  });
 }
 
 async function warehouseFacts(orgId: string, warehouseId: string) {
   const [items, movements, orderLines] = await Promise.all([
-    db.inventoryItem.findMany({ where: { orgId, warehouseId }, select: { onHand: true, reserved: true } }),
+    db.inventoryItem.findMany({
+      where: { orgId, warehouseId },
+      select: { onHand: true, reserved: true },
+    }),
     db.stockMovement.count({ where: { orgId, warehouseId } }),
     db.orderItem.count({ where: { stockWarehouseId: warehouseId } }),
   ]);
@@ -142,13 +161,22 @@ async function warehouseFacts(orgId: string, warehouseId: string) {
 export async function deleteBranch(ctx: Ctx, id: string) {
   manage(ctx);
   await ownedBranch(ctx, id);
-  const whs = await db.warehouse.findMany({ where: { branchId: id }, select: { id: true, name: true } });
+  const whs = await db.warehouse.findMany({
+    where: { branchId: id },
+    select: { id: true, name: true },
+  });
   for (const w of whs) {
     const why = warehouseDeleteBlocker(await warehouseFacts(ctx.orgId, w.id));
     if (why) throw new AppError(`Cannot delete this branch: "${w.name}" — ${why}`, "CONFLICT");
   }
   await db.branch.delete({ where: { id } });
-  await audit({ orgId: ctx.orgId, actorId: ctx.userId, action: "branch.deleted", entity: "Branch", entityId: id });
+  await audit({
+    orgId: ctx.orgId,
+    actorId: ctx.userId,
+    action: "branch.deleted",
+    entity: "Branch",
+    entityId: id,
+  });
 }
 
 export async function addWarehouse(ctx: Ctx, branchId: string, raw: unknown) {
@@ -159,12 +187,21 @@ export async function addWarehouse(ctx: Ctx, branchId: string, raw: unknown) {
   const w = await db.$transaction(
     async (tx) => {
       if ((await tx.warehouse.count({ where: { branchId } })) >= MAX_WAREHOUSES_PER_BRANCH)
-        throw new AppError(`A branch can have at most ${MAX_WAREHOUSES_PER_BRANCH} warehouses.`, "CONFLICT");
+        throw new AppError(
+          `A branch can have at most ${MAX_WAREHOUSES_PER_BRANCH} warehouses.`,
+          "CONFLICT",
+        );
       return tx.warehouse.create({ data: { branchId, name: p.data.name } });
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
-  await audit({ orgId: ctx.orgId, actorId: ctx.userId, action: "warehouse.created", entity: "Warehouse", entityId: w.id });
+  await audit({
+    orgId: ctx.orgId,
+    actorId: ctx.userId,
+    action: "warehouse.created",
+    entity: "Warehouse",
+    entityId: w.id,
+  });
   return w;
 }
 
@@ -178,7 +215,13 @@ export async function deleteWarehouse(ctx: Ctx, warehouseId: string) {
   const why = warehouseDeleteBlocker(await warehouseFacts(ctx.orgId, warehouseId));
   if (why) throw new AppError(`Cannot delete this warehouse. ${why}`, "CONFLICT");
   await db.warehouse.delete({ where: { id: warehouseId } });
-  await audit({ orgId: ctx.orgId, actorId: ctx.userId, action: "warehouse.deleted", entity: "Warehouse", entityId: warehouseId });
+  await audit({
+    orgId: ctx.orgId,
+    actorId: ctx.userId,
+    action: "warehouse.deleted",
+    entity: "Warehouse",
+    entityId: warehouseId,
+  });
 }
 
 export const transferSchema = z.object({
@@ -210,7 +253,11 @@ export async function transferStock(ctx: Ctx, raw: unknown) {
   const from = whs.find((w) => w.id === d.fromWarehouseId);
   const to = whs.find((w) => w.id === d.toWarehouseId);
   if (!from || !to) throw new AppError("Warehouse not found.", "NOT_FOUND");
-  const ref = `Transfer ${warehouseLabel(from.branch.name, from.name)} → ${warehouseLabel(to.branch.name, to.name)}`.slice(0, 120);
+  const ref =
+    `Transfer ${warehouseLabel(from.branch.name, from.name)} → ${warehouseLabel(to.branch.name, to.name)}`.slice(
+      0,
+      120,
+    );
 
   try {
     await db.$transaction(
@@ -223,7 +270,8 @@ export async function transferStock(ctx: Ctx, raw: unknown) {
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
   } catch (e) {
-    if (e instanceof StockError) throw new AppError(e.message, "VALIDATION", { quantity: e.message });
+    if (e instanceof StockError)
+      throw new AppError(e.message, "VALIDATION", { quantity: e.message });
     throw e;
   }
   await audit({

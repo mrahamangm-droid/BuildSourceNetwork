@@ -26,6 +26,7 @@ import * as branches from "./services/branches";
 import * as blog from "./services/blog";
 import * as rfqAttachments from "./services/rfq-attachments";
 import type { DeliveryStatusValue } from "@/lib/delivery-rules";
+import type { ProductImportIssue, ProductImportRow } from "@/lib/product-import";
 import { ORDER_STATUSES, type OrderStatus } from "@bmn/config";
 
 export type ActionState = {
@@ -1013,6 +1014,57 @@ export async function reviewPlanRequestAction(_: ActionState, fd: FormData): Pro
     );
     revalidatePath("/admin/plans");
     return { ok: true, message: decision === "APPROVE" ? "Plan activated." : "Request rejected." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export type ProductImportState = ActionState & {
+  rows?: ProductImportRow[];
+  issues?: ProductImportIssue[];
+  truncated?: boolean;
+};
+const PRODUCT_IMPORT_MAX_FILE_BYTES = 200_000;
+
+/** Bulk import step 1: read a pasted list or uploaded .csv/.tsv/.txt. Saves nothing. */
+export async function previewProductImportAction(
+  _: ProductImportState,
+  fd: FormData,
+): Promise<ProductImportState> {
+  try {
+    const ctx = await requireCtx();
+    let text = str(fd, "text");
+    const file = fd.get("file");
+    if (file instanceof File && file.size > 0) {
+      if (file.size > PRODUCT_IMPORT_MAX_FILE_BYTES)
+        return { error: "That file is too large. Keep it under 200 KB (about 1,500 rows)." };
+      if (!/\.(csv|tsv|txt)$/i.test(file.name))
+        return {
+          error:
+            "Upload a .csv, .tsv or .txt file. In Excel, use Save As → CSV, or paste the cells.",
+        };
+      text = await file.text();
+    }
+    const r = await products.previewProductImport(ctx, text);
+    return { ok: true, rows: r.rows, issues: r.issues, truncated: r.truncated };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/** Bulk import step 2: create the products the user kept. */
+export async function importProductsAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requireCtx();
+    let rows: unknown;
+    try {
+      rows = JSON.parse(str(fd, "rows") || "[]");
+    } catch {
+      return { error: "Could not read the selected products. Please import again." };
+    }
+    const n = await products.importProducts(ctx, rows);
+    revalidatePath("/dashboard/products");
+    return { ok: true, message: `${n} product${n === 1 ? "" : "s"} added to your catalogue.` };
   } catch (e) {
     return fail(e);
   }

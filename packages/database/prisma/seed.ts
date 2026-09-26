@@ -5,9 +5,10 @@
  */
 import "dotenv/config";
 import bcrypt from "bcryptjs";
-import { CATEGORIES, PLANS, UNITS, slugify } from "@bmn/config";
+import { CATEGORIES } from "@bmn/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/client";
+import { seedReference } from "./reference";
 
 const db = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
@@ -98,51 +99,6 @@ const CATALOG: Record<string, P[]> = {
   ],
 };
 
-async function refData() {
-  for (const [i, name] of CATEGORIES.entries()) {
-    const slug = slugify(name);
-    await db.category.upsert({
-      where: { slug },
-      update: { name, sortOrder: i },
-      create: { slug, name, sortOrder: i },
-    });
-  }
-  for (const u of UNITS) {
-    await db.unit.upsert({
-      where: { code: u.code },
-      update: { name: u.name, dimension: u.dimension, baseCode: u.baseCode, factor: u.factor },
-      create: {
-        code: u.code,
-        name: u.name,
-        dimension: u.dimension,
-        baseCode: u.baseCode,
-        factor: u.factor,
-      },
-    });
-  }
-  for (const p of PLANS) {
-    const data = {
-      name: p.name,
-      priceMonthlyCents: p.priceMonthlyCents,
-      productLimit: p.productLimit,
-      rfqLimit: p.rfqLimit,
-      features: [...p.features],
-    };
-    await db.subscriptionPlan.upsert({
-      where: { code: p.code },
-      update: data,
-      create: { code: p.code, ...data },
-    });
-  }
-  for (const [key, value] of Object.entries({
-    platformFeeBps: "100",
-    rfqExpiryDays: "7",
-    defaultCurrency: "AED",
-  })) {
-    await db.platformSetting.upsert({ where: { key }, update: {}, create: { key, value } });
-  }
-}
-
 async function wipeDemo() {
   const demoOrgs = await db.organization.findMany({
     where: { isDemo: true },
@@ -205,7 +161,7 @@ async function makeOrg(
 }
 
 async function main() {
-  await refData();
+  await seedReference(db);
   await wipeDemo();
   const units = await db.unit.findMany();
   const cats = await db.category.findMany();

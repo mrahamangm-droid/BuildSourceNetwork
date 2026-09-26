@@ -1,7 +1,7 @@
 {
   "framework": "nextjs",
   "installCommand": "npm install",
-  "buildCommand": "npm run db:generate && if [ \"$VERCEL_ENV\" = \"production\" ]; then npm run db:deploy; else echo \"Skipping migrations outside production\"; fi && npm run build -w @bmn/web",
+  "buildCommand": "npm run db:generate && if [ \"$VERCEL_ENV\" = \"production\" ]; then npm run db:deploy && npm run db:seed:reference; else echo \"Skipping migrations outside production\"; fi && npm run build -w @bmn/web",
   "outputDirectory": "apps/web/.next",
   "crons": [
     {

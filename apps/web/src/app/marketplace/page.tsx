@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { db } from "@bmn/database";
 import { Button, EmptyState, Input, Select, Label, LinkButton } from "@/components/ui";
 import { Breadcrumbs, Pagination, ProductCard, SearchBox } from "@/components/market/parts";
+import { CategoryFilterSelect } from "@/components/market/category-filter-select";
 import { searchProducts, type SearchFilters } from "@/server/services/products";
 
 export const dynamic = "force-dynamic";
@@ -27,9 +29,26 @@ export async function generateMetadata({
 const num = (v?: string) =>
   v && !Number.isNaN(Number(v)) && Number(v) >= 0 ? Number(v) : undefined;
 
-async function getFilterOptions() {
-  const [categories, brands, suppliers, cities] = await Promise.all([
-    db.category.findMany({ orderBy: { sortOrder: "asc" }, select: { slug: true, name: true } }),
+async function getFilterOptions(categorySlug?: string, subcategorySlug?: string) {
+  const [categories, subcategories, types, brands, suppliers, cities] = await Promise.all([
+    db.category.findMany({
+      orderBy: { sortOrder: "asc" },
+      select: { slug: true, name: true, department: { select: { name: true } } },
+    }),
+    categorySlug
+      ? db.subcategory.findMany({
+          where: { category: { slug: categorySlug } },
+          orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+          select: { slug: true, name: true },
+        })
+      : Promise.resolve([]),
+    categorySlug && subcategorySlug
+      ? db.productType.findMany({
+          where: { subcategory: { slug: subcategorySlug, category: { slug: categorySlug } } },
+          orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+          select: { slug: true, name: true },
+        })
+      : Promise.resolve([]),
     db.brand.findMany({
       where: { products: { some: { isActive: true } } },
       orderBy: { name: "asc" },
@@ -48,7 +67,19 @@ async function getFilterOptions() {
       orderBy: { city: "asc" },
     }),
   ]);
-  return { categories, brands, suppliers, cities: cities.map((c) => c.city!).filter(Boolean) };
+  const groups = new Map<string, { slug: string; name: string }[]>();
+  for (const c of categories) {
+    const key = c.department?.name ?? "Other";
+    groups.set(key, [...(groups.get(key) ?? []), { slug: c.slug, name: c.name }]);
+  }
+  return {
+    categoryGroups: [...groups].map(([department, items]) => ({ department, items })),
+    subcategories,
+    types,
+    brands,
+    suppliers,
+    cities: cities.map((c) => c.city!).filter(Boolean),
+  };
 }
 
 export default async function MarketplacePage({ searchParams }: { searchParams: Promise<SP> }) {
@@ -56,6 +87,8 @@ export default async function MarketplacePage({ searchParams }: { searchParams: 
   const filters: SearchFilters = {
     q: sp.q?.trim() || undefined,
     category: sp.category || undefined,
+    subcategory: sp.category ? sp.sub || undefined : undefined,
+    productType: sp.category && sp.sub ? sp.type || undefined : undefined,
     brand: sp.brand || undefined,
     supplier: sp.supplier || undefined,
     city: sp.city || undefined,
@@ -70,7 +103,10 @@ export default async function MarketplacePage({ searchParams }: { searchParams: 
       : "relevance") as SearchFilters["sort"],
     page: Number(sp.page) || 1,
   };
-  const [result, opts] = await Promise.all([searchProducts(filters), getFilterOptions()]);
+  const [result, opts] = await Promise.all([
+    searchProducts(filters),
+    getFilterOptions(sp.category, sp.sub),
+  ]);
   const rfqHref = `/request-quotes?${new URLSearchParams({ ...(sp.q ? { material: sp.q } : {}), ...(sp.city ? { city: sp.city } : {}), ...(sp.category ? { category: sp.category } : {}) }).toString()}`;
 
   return (
@@ -78,6 +114,11 @@ export default async function MarketplacePage({ searchParams }: { searchParams: 
       <Breadcrumbs items={[{ name: "Home", href: "/" }, { name: "Marketplace" }]} />
       <h1 className="mb-4 text-3xl font-bold tracking-tight">Building materials marketplace</h1>
       <SearchBox defaultValue={sp.q} />
+      <p className="mt-2 text-sm">
+        <Link className="text-brand-700 hover:underline" href="/categories">
+          Browse all departments and categories →
+        </Link>
+      </p>
       <div className="mt-6 grid gap-6 lg:grid-cols-[260px_1fr]">
         <form
           method="get"
@@ -86,15 +127,34 @@ export default async function MarketplacePage({ searchParams }: { searchParams: 
           {sp.q ? <input type="hidden" name="q" value={sp.q} /> : null}
           <div>
             <Label htmlFor="category">Category</Label>
-            <Select id="category" name="category" defaultValue={sp.category ?? ""}>
-              <option value="">All categories</option>
-              {opts.categories.map((c) => (
-                <option key={c.slug} value={c.slug}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
+            <CategoryFilterSelect groups={opts.categoryGroups} defaultValue={sp.category ?? ""} />
           </div>
+          {sp.category && opts.subcategories.length ? (
+            <div>
+              <Label htmlFor="sub">Subcategory</Label>
+              <Select id="sub" name="sub" defaultValue={sp.sub ?? ""}>
+                <option value="">All subcategories</option>
+                {opts.subcategories.map((c) => (
+                  <option key={c.slug} value={c.slug}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          ) : null}
+          {sp.category && sp.sub && opts.types.length ? (
+            <div>
+              <Label htmlFor="type">Product type</Label>
+              <Select id="type" name="type" defaultValue={sp.type ?? ""}>
+                <option value="">All product types</option>
+                {opts.types.map((c) => (
+                  <option key={c.slug} value={c.slug}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          ) : null}
           <div>
             <Label htmlFor="city">Location</Label>
             <Select id="city" name="city" defaultValue={sp.city ?? ""}>

@@ -103,7 +103,9 @@ export default async function InventoryPage({
                   </td>
                   <td className="px-4 py-3 text-right">{formatQty(r.reserved)}</td>
                   <td className="px-4 py-3 text-right font-semibold">{formatQty(r.available)}</td>
-                  <td className="px-4 py-3 text-right">{r.reorderLevel ? formatQty(r.reorderLevel) : "—"}</td>
+                  <td className="px-4 py-3 text-right">
+                    {r.reorderLevel ? formatQty(r.reorderLevel) : "—"}
+                  </td>
                   <td className="px-4 py-3">
                     {r.available <= 0 ? (
                       <Badge tone="red">Out of stock</Badge>
@@ -121,7 +123,11 @@ export default async function InventoryPage({
       ) : (
         <EmptyState
           title={lowOnly ? "Nothing is running low" : "No products yet"}
-          body={lowOnly ? "All stock is above its reorder level." : "Add products first, then record stock here."}
+          body={
+            lowOnly
+              ? "All stock is above its reorder level."
+              : "Add products first, then record stock here."
+          }
         />
       )}
 
@@ -155,7 +161,9 @@ export default async function InventoryPage({
                       <td className="px-4 py-2">{m.product.name}</td>
                       <td className="px-4 py-2 capitalize">{m.type.toLowerCase()}</td>
                       <td className="px-4 py-2 text-right">
-                        {delta ? `${delta > 0 ? "+" : ""}${formatQty(delta)}` : `${rdelta > 0 ? "+" : ""}${formatQty(rdelta)} reserved`}{" "}
+                        {delta
+                          ? `${delta > 0 ? "+" : ""}${formatQty(delta)}`
+                          : `${rdelta > 0 ? "+" : ""}${formatQty(rdelta)} reserved`}{" "}
                         <span className="text-muted">{m.product.unitCode}</span>
                       </td>
                       <td className="px-4 py-2 text-muted">{m.reference ?? "—"}</td>

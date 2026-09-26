@@ -5,6 +5,7 @@ import { assertCan, assertOrgType, assertVerified, type Ctx } from "../ctx";
 import { AppError } from "../errors";
 import { fieldErrorsFrom } from "./accounts";
 import { audit } from "./notify";
+import { assertWithinLimit } from "./plans";
 
 const money = z.coerce.number().positive("Must be greater than 0").max(1e9);
 const optMoney = z.preprocess(
@@ -57,20 +58,7 @@ async function uniqueProductSlug(orgId: string, name: string, excludeId?: string
   return `${root}-${Date.now().toString(36)}`;
 }
 
-async function assertProductLimit(ctx: Ctx) {
-  const sub = await db.subscription.findUnique({
-    where: { orgId: ctx.orgId },
-    include: { plan: true },
-  });
-  const limit = sub?.plan.productLimit;
-  if (limit == null) return;
-  const count = await db.product.count({ where: { orgId: ctx.orgId, isActive: true } });
-  if (count >= limit)
-    throw new AppError(
-      `Your ${sub!.plan.name} plan allows ${limit} active products. Upgrade to add more.`,
-      "FORBIDDEN",
-    );
-}
+const assertProductLimit = (ctx: Ctx) => assertWithinLimit(ctx.orgId, "product");
 
 async function resolveRefs(d: ProductInput) {
   const [cat, unit] = await Promise.all([

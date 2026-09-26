@@ -17,6 +17,14 @@ export const ORG_TYPE_DESCRIPTION: Record<OrgType, string> = {
   BUYER: "Property developer, project buyer or other professional buyer.",
 };
 
+export const SUPPLIER_KINDS = ["MANUFACTURER", "DISTRIBUTOR", "WHOLESALER"] as const;
+export type SupplierKind = (typeof SUPPLIER_KINDS)[number];
+export const SUPPLIER_KIND_LABEL: Record<SupplierKind, string> = {
+  MANUFACTURER: "Manufacturer",
+  DISTRIBUTOR: "Distributor",
+  WHOLESALER: "Wholesaler",
+};
+
 /** Organizations of these types can request quotes. */
 export const BUYER_TYPES: OrgType[] = ["STORE", "CONTRACTOR", "BUYER"];
 

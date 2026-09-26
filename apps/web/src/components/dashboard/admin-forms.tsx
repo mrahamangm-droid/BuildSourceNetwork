@@ -3,6 +3,7 @@ import { useActionState } from "react";
 import { Button, Input } from "@/components/ui";
 import { FormMessage, SubmitButton, fe } from "@/components/forms/shared";
 import {
+  reviewPlanRequestAction,
   reviewVerificationAction,
   revokeVerificationAction,
   saveSettingsAction,
@@ -65,6 +66,28 @@ export function SettingsForm({ rows }: { rows: { key: string; label: string; val
       ))}
       <FormMessage state={state} />
       <SubmitButton>Save settings</SubmitButton>
+    </form>
+  );
+}
+
+export function PlanReviewForm({ requestId }: { requestId: string }) {
+  const [state, action, pending] = useActionState<ActionState, FormData>(reviewPlanRequestAction, {});
+  return (
+    <form action={action} className="mt-3 space-y-2">
+      <input type="hidden" name="requestId" value={requestId} />
+      <Input name="paymentRef" placeholder="Payment or invoice reference (required to approve)" aria-label="Payment reference" />
+      {fe(state, "paymentRef") ? <p className="text-xs text-red-600">{fe(state, "paymentRef")}</p> : null}
+      <Input name="note" placeholder="Note to the company (required when rejecting)" aria-label="Review note" />
+      {fe(state, "note") ? <p className="text-xs text-red-600">{fe(state, "note")}</p> : null}
+      <div className="flex gap-2">
+        <Button type="submit" name="decision" value="APPROVE" size="sm" disabled={pending}>
+          Activate for 30 days
+        </Button>
+        <Button type="submit" name="decision" value="REJECT" size="sm" variant="danger" disabled={pending}>
+          Reject
+        </Button>
+      </div>
+      <FormMessage state={state} />
     </form>
   );
 }

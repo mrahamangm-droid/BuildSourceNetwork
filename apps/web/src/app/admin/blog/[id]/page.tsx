@@ -26,7 +26,9 @@ export default async function EditPostPage({
     <div className="max-w-3xl space-y-4">
       <PageHeader
         title={post.title}
-        action={<Badge tone={published ? "green" : "neutral"}>{published ? "Published" : "Draft"}</Badge>}
+        action={
+          <Badge tone={published ? "green" : "neutral"}>{published ? "Published" : "Draft"}</Badge>
+        }
       />
       {sp.saved ? <Alert tone="success">Draft created.</Alert> : null}
       <div className="flex flex-wrap items-center gap-3">

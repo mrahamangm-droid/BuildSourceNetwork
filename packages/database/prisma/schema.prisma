@@ -374,6 +374,7 @@ model Product {
   movements StockMovement[]
   orderItems OrderItem[]
   reviews   ProductReview[]
+  documents ProductDocument[]
 
   @@unique([orgId, slug])
   @@unique([orgId, sku])
@@ -1115,4 +1116,19 @@ model ImportRow {
   @@unique([jobId, rowNumber])
   @@index([jobId, status, rowNumber])
   @@index([jobId, dupKey])
+}
+
+// A datasheet, certificate or safety sheet attached to a product (PDF, uploaded by its seller).
+model ProductDocument {
+  id        String   @id @default(cuid())
+  productId String
+  kind      String   @default("DATASHEET")
+  name      String
+  url       String
+  sizeBytes Int      @default(0)
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
 }

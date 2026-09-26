@@ -311,6 +311,20 @@ export async function cancelRfqAction(fd: FormData) {
   revalidatePath(`/dashboard/rfqs/${str(fd, "rfqId")}`);
 }
 
+export async function linkRfqProjectAction(fd: FormData) {
+  const rfqId = str(fd, "rfqId");
+  let error = "";
+  try {
+    const ctx = await requireCtx();
+    await projects.setRfqProject(ctx, rfqId, str(fd, "projectId") || null);
+  } catch (e) {
+    error = fail(e).error ?? "Could not update the project";
+  }
+  revalidatePath(`/dashboard/rfqs/${rfqId}`);
+  revalidatePath("/dashboard/projects");
+  if (error) redirect(`/dashboard/rfqs/${rfqId}?error=${encodeURIComponent(error)}`);
+}
+
 export async function removeRfqAttachmentAction(fd: FormData) {
   const rfqId = str(fd, "rfqId");
   try {

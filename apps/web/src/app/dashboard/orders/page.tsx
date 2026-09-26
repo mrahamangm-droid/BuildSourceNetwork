@@ -2,13 +2,18 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireCtx } from "@/server/access";
 import { listOrders, regularMaterialsFor } from "@/server/services/orders";
-import { Badge, Card, EmptyState, LinkButton, PageHeader } from "@/components/ui";
+import { Alert, Badge, Card, EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { formatDate, formatMoney, formatQty } from "@/lib/utils";
 import { ORDER_STATUS_LABEL } from "@bmn/config";
 
 export const metadata: Metadata = { title: "Orders" };
 
-export default async function OrdersPage() {
+export default async function OrdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ placed?: string }>;
+}) {
+  const { placed } = await searchParams;
   const ctx = await requireCtx();
   const orders = await listOrders(ctx);
   const isSupplier = ctx.orgType === "SUPPLIER";
@@ -21,6 +26,14 @@ export default async function OrdersPage() {
           isSupplier ? "Orders from accepted quotes." : "Orders created from quotes you accepted."
         }
       />
+      {placed ? (
+        <div className="mb-4">
+          <Alert tone="success">
+            {Number(placed) > 1 ? `${placed} orders placed` : "Order placed"}, one per supplier.
+            Each supplier has been notified to confirm.
+          </Alert>
+        </div>
+      ) : null}
       {regular.length ? (
         <section className="mb-6" aria-labelledby="regular-h">
           <h2 id="regular-h" className="text-lg font-semibold">

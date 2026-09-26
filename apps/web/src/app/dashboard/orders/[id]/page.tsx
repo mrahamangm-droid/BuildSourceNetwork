@@ -8,6 +8,7 @@ import { Alert, Badge, Button, Card, LinkButton, PageHeader } from "@/components
 import { ReviewForm } from "@/components/dashboard/review-form";
 import { ReplyForm } from "@/components/market/review-actions";
 import { DeliveryPanel } from "@/components/dashboard/delivery-panel";
+import { ReorderButton } from "@/components/dashboard/reorder-button";
 import { OrderStockPanel } from "@/components/dashboard/order-stock-panel";
 import { getOrderStock } from "@/server/services/order-stock";
 import { formatDate, formatMoney, formatQty } from "@/lib/utils";
@@ -29,7 +30,7 @@ export default async function OrderPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ created?: string; error?: string }>;
+  searchParams: Promise<{ created?: string; placed?: string; error?: string }>;
 }) {
   const ctx = await requireCtx();
   const { id } = await params;
@@ -69,6 +70,11 @@ export default async function OrderPage({
           </Alert>
         </div>
       ) : null}
+      {sp.placed ? (
+        <div className="mb-4">
+          <Alert tone="success">Order placed. The supplier has been notified to confirm it.</Alert>
+        </div>
+      ) : null}
       {sp.error ? (
         <div className="mb-4">
           <Alert tone="error">{sp.error}</Alert>
@@ -78,7 +84,11 @@ export default async function OrderPage({
       {isBuyer && order.status !== "CANCELLED" ? (
         <Card className="mb-4 flex flex-wrap items-center justify-between gap-3 text-sm">
           <p className="text-muted">Need the same materials again?</p>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-start gap-2">
+            <ReorderButton
+              body={{ action: "reorder", orderId: order.id }}
+              label="Reorder to cart"
+            />
             <LinkButton
               href={`/dashboard/rfqs/new?reorder=${order.id}`}
               size="sm"

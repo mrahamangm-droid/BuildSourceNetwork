@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
+import { CompareBar } from "@/components/market/compare-bar";
 import { SwRegister } from "@/components/layout/sw-register";
 import { appUrl } from "@/lib/utils";
 import { BRAND } from "@/lib/company";
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SiteHeader />
         <main id="main">{children}</main>
         <SiteFooter />
+        <CompareBar />
         <SwRegister />
       </body>
     </html>

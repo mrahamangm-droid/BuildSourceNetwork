@@ -104,7 +104,11 @@ export async function getOwnOrg(ctx: Ctx) {
 /** Aggregate trust metrics computed from real transactions — reviews cannot be typed in freely. */
 export async function trustMetrics(orgId: string) {
   const [rating, completed, recipients, responded] = await Promise.all([
-    db.review.aggregate({ where: { subjectOrgId: orgId }, _avg: { rating: true }, _count: true }),
+    db.review.aggregate({
+      where: { subjectOrgId: orgId, status: "PUBLISHED" },
+      _avg: { rating: true },
+      _count: true,
+    }),
     db.order.count({ where: { supplierOrgId: orgId, status: "COMPLETED" } }),
     db.rfqRecipient.count({ where: { supplierOrgId: orgId } }),
     db.rfqRecipient.count({ where: { supplierOrgId: orgId, status: "RESPONDED" } }),

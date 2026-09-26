@@ -13,6 +13,7 @@ import * as orgs from "./services/orgs";
 import * as products from "./services/products";
 import * as rfq from "./services/rfq";
 import * as orders from "./services/orders";
+import * as reviews from "./services/reviews";
 import * as admin from "./services/admin";
 import * as inventory from "./services/inventory";
 import * as delivery from "./services/delivery";
@@ -399,12 +400,85 @@ export async function advanceOrderAction(fd: FormData) {
   redirect(`/dashboard/orders/${orderId}`);
 }
 
+/** Up to three review photos posted as photo1..photo3 hidden inputs (empty ones are skipped). */
+function reviewPhotos(fd: FormData) {
+  return ["photo1", "photo2", "photo3"].map((k) => str(fd, k)).filter(Boolean);
+}
+
+export async function saveProductReviewAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const productId = str(fd, "productId");
+  try {
+    const ctx = await requireCtx();
+    await reviews.saveProductReview(ctx, productId, {
+      rating: str(fd, "rating"),
+      title: str(fd, "title"),
+      body: str(fd, "body"),
+      photos: reviewPhotos(fd),
+    });
+    revalidatePath(`/products/${productId}`);
+    return { ok: true, message: "Thanks. Your review is published." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function toggleHelpfulAction(fd: FormData) {
+  const ctx = await requireCtx();
+  try {
+    await reviews.toggleHelpful(ctx, str(fd, "reviewId"));
+  } catch (e) {
+    if (!(e instanceof AppError)) throw e; // rate limits and own-company votes are silently ignored
+  }
+  revalidatePath(`/products/${str(fd, "productId")}`);
+}
+
+export async function reportReviewAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requireCtx();
+    await reviews.reportReview(ctx, str(fd, "reviewId"), {
+      reason: str(fd, "reason"),
+      note: str(fd, "note"),
+    });
+    return { ok: true, message: "Thanks. Our team will look at this review." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function replyReviewAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requireCtx();
+    const kind = str(fd, "kind") === "ORDER" ? "ORDER" : "PRODUCT";
+    await reviews.replyToReview(ctx, kind, str(fd, "reviewId"), { text: str(fd, "text") });
+    revalidatePath("/dashboard/orders", "layout");
+    if (str(fd, "productId")) revalidatePath(`/products/${str(fd, "productId")}`);
+    return { ok: true, message: "Reply published." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function moderateReviewAction(fd: FormData) {
+  const a = await requireAdmin();
+  const action = str(fd, "action");
+  if (action !== "HIDE" && action !== "RESTORE" && action !== "DISMISS_REPORTS") return;
+  await reviews.moderateReview(
+    { userId: a.id, isPlatformAdmin: true },
+    str(fd, "kind") === "ORDER" ? "ORDER" : "PRODUCT",
+    str(fd, "reviewId"),
+    action,
+  );
+  revalidatePath("/admin/reviews");
+}
+
 export async function submitReviewAction(_: ActionState, fd: FormData): Promise<ActionState> {
   try {
     const ctx = await requireCtx();
     await orders.submitReview(ctx, str(fd, "orderId"), {
       rating: str(fd, "rating"),
       comment: str(fd, "comment"),
+      title: str(fd, "title"),
+      photos: reviewPhotos(fd),
     });
     revalidatePath(`/dashboard/orders/${str(fd, "orderId")}`);
     return { ok: true, message: "Thanks for your review." };

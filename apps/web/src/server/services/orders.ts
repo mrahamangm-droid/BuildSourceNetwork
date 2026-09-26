@@ -6,6 +6,7 @@ import { AppError } from "../errors";
 import { audit, notifyOrg } from "./notify";
 import { syncOrderStock } from "./order-stock";
 import { regularMaterials } from "@/lib/reorder";
+import { screenReviewText } from "@/lib/reviews";
 
 /** Orders are visible only to the buying org and the supplying org. */
 const scope = (ctx: Ctx) => ({ OR: [{ buyerOrgId: ctx.orgId }, { supplierOrgId: ctx.orgId }] });
@@ -105,6 +106,18 @@ export async function advanceOrder(ctx: Ctx, orderId: string, next: OrderStatus,
 export const reviewSchema = z.object({
   rating: z.coerce.number().int().min(1, "Choose a rating").max(5),
   comment: z.string().trim().max(1000).optional().default(""),
+  title: z.string().trim().max(100).optional().default(""),
+  photos: z
+    .array(
+      z
+        .string()
+        .trim()
+        .max(300)
+        .refine((v) => v.startsWith("/api/files/") || /^https:\/\//i.test(v), "Invalid photo"),
+    )
+    .max(3)
+    .optional()
+    .default([]),
 });
 
 /** One review per COMPLETED order, written only by the buying org. */
@@ -115,6 +128,8 @@ export async function submitReview(ctx: Ctx, orderId: string, raw: unknown) {
     throw new AppError(parsed.error.issues[0].message, "VALIDATION", {
       rating: parsed.error.issues[0].message,
     });
+  const problem = screenReviewText(parsed.data.title, parsed.data.comment);
+  if (problem) throw new AppError(problem, "VALIDATION", { comment: problem });
   const order = await db.order.findFirst({ where: { id: orderId, buyerOrgId: ctx.orgId } });
   if (!order) throw new AppError("Order not found", "NOT_FOUND");
   if (order.status !== "COMPLETED")
@@ -129,6 +144,8 @@ export async function submitReview(ctx: Ctx, orderId: string, raw: unknown) {
       authorId: ctx.userId,
       rating: parsed.data.rating,
       comment: parsed.data.comment || null,
+      title: parsed.data.title || null,
+      photos: parsed.data.photos,
     },
   });
   await notifyOrg({

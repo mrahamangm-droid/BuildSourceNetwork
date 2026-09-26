@@ -190,6 +190,7 @@ model Organization {
   supplierOrders  Order[]            @relation("SupplierOrders")
   reviewsWritten  Review[]           @relation("ReviewAuthor")
   reviewsReceived Review[]           @relation("ReviewSubject")
+  productReviews  ProductReview[]    @relation("ProductReviewAuthor")
   documents       Document[]
   notifications   Notification[]
   auditLogs       AuditLog[]
@@ -333,6 +334,8 @@ model Product {
   description      String?
   specifications   Json?
   packageSize      String?
+  ratingAvg        Decimal?     @db.Decimal(3, 2)
+  ratingCount      Int          @default(0)
   material         String?
   grade            String?
   size             String?
@@ -369,6 +372,7 @@ model Product {
   inventory InventoryItem[]
   movements StockMovement[]
   orderItems OrderItem[]
+  reviews   ProductReview[]
 
   @@unique([orgId, slug])
   @@unique([orgId, sku])
@@ -550,6 +554,7 @@ model Order {
   events      OrderEvent[]
   deliveries  Delivery[]
   reviews     Review[]
+  productReviews ProductReview[]
 
   @@index([buyerOrgId, status])
   @@index([supplierOrgId, status])
@@ -625,12 +630,77 @@ model Review {
   authorId     String
   rating       Int
   comment      String?
+  title        String?
+  photos       String[]
+  status       ReviewStatus @default(PUBLISHED)
+  reply        String?
+  repliedAt    DateTime?
   createdAt    DateTime @default(now())
   order        Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
   authorOrg    Organization @relation("ReviewAuthor", fields: [authorOrgId], references: [id])
   subjectOrg   Organization @relation("ReviewSubject", fields: [subjectOrgId], references: [id])
 
   @@index([subjectOrgId])
+  @@index([status, createdAt])
+}
+
+enum ReviewStatus {
+  PUBLISHED
+  HIDDEN
+}
+
+// A review of one product, only by a buyer org that received it in a delivered or completed order.
+model ProductReview {
+  id           String       @id @default(cuid())
+  productId    String
+  authorOrgId  String
+  authorId     String
+  orderId      String?
+  rating       Int
+  title        String?
+  body         String?
+  photos       String[]
+  status       ReviewStatus @default(PUBLISHED)
+  helpfulCount Int          @default(0)
+  reportCount  Int          @default(0)
+  reply        String?
+  repliedAt    DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  product   Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  authorOrg Organization   @relation("ProductReviewAuthor", fields: [authorOrgId], references: [id])
+  order     Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  votes     ReviewVote[]
+  reports   ReviewReport[]
+
+  @@unique([productId, authorOrgId])
+  @@index([productId, status, createdAt])
+  @@index([reportCount])
+  @@index([authorId, createdAt])
+}
+
+model ReviewVote {
+  id              String        @id @default(cuid())
+  productReviewId String
+  userId          String
+  createdAt       DateTime      @default(now())
+  review          ProductReview @relation(fields: [productReviewId], references: [id], onDelete: Cascade)
+
+  @@unique([productReviewId, userId])
+}
+
+model ReviewReport {
+  id              String        @id @default(cuid())
+  productReviewId String
+  reporterId      String
+  reason          String
+  note            String?
+  createdAt       DateTime      @default(now())
+  resolvedAt      DateTime?
+  review          ProductReview @relation(fields: [productReviewId], references: [id], onDelete: Cascade)
+
+  @@unique([productReviewId, reporterId])
 }
 
 model Notification {

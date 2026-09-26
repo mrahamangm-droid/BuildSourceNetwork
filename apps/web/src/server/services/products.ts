@@ -348,6 +348,7 @@ export type SearchFilters = {
   color?: string;
   finish?: string;
   application?: string;
+  minRating?: number;
   supplier?: string;
   city?: string;
   verifiedOnly?: boolean;
@@ -356,7 +357,7 @@ export type SearchFilters = {
   minPrice?: number;
   maxPrice?: number;
   maxMoq?: number;
-  sort?: "relevance" | "price_asc" | "price_desc" | "newest";
+  sort?: "relevance" | "price_asc" | "price_desc" | "newest" | "rating";
   page?: number;
   pageSize?: number;
 };
@@ -437,6 +438,7 @@ export async function searchProducts(f: SearchFilters) {
         }
       : {}),
     ...(f.maxMoq != null ? { minOrderQty: { lte: f.maxMoq } } : {}),
+    ...(f.minRating ? { ratingAvg: { gte: f.minRating } } : {}),
     ...(and.length ? { AND: and } : {}),
   };
   const orderBy: Prisma.ProductOrderByWithRelationInput[] =
@@ -446,7 +448,13 @@ export async function searchProducts(f: SearchFilters) {
         ? [{ price: "desc" }]
         : f.sort === "newest"
           ? [{ createdAt: "desc" }]
-          : [{ org: { verificationStatus: "asc" } }, { name: "asc" }];
+          : f.sort === "rating"
+            ? [
+                { ratingAvg: { sort: "desc", nulls: "last" } },
+                { ratingCount: "desc" },
+                { name: "asc" },
+              ]
+            : [{ org: { verificationStatus: "asc" } }, { name: "asc" }];
   const [total, items] = await Promise.all([
     db.product.count({ where }),
     db.product.findMany({
@@ -467,6 +475,8 @@ export async function searchProducts(f: SearchFilters) {
         deliveryAvailable: true,
         packageSize: true,
         isDemo: true,
+        ratingAvg: true,
+        ratingCount: true,
         unit: { select: { code: true, name: true } },
         category: { select: { name: true, slug: true } },
         brand: { select: { name: true, slug: true } },

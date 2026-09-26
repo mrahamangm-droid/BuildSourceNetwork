@@ -5,6 +5,7 @@ import { assertCan, type Ctx } from "../ctx";
 import { AppError } from "../errors";
 import { audit, notifyOrg } from "./notify";
 import { syncOrderStock } from "./order-stock";
+import { regularMaterials } from "@/lib/reorder";
 
 /** Orders are visible only to the buying org and the supplying org. */
 const scope = (ctx: Ctx) => ({ OR: [{ buyerOrgId: ctx.orgId }, { supplierOrgId: ctx.orgId }] });
@@ -196,4 +197,44 @@ export async function dashboardStats(ctx: Ctx) {
     openRfqs,
     quotesReceived,
   };
+}
+
+/**
+ * "Regular materials" for a buying organization: what it orders most often, from its own order
+ * history. Nothing extra is stored, and it can only ever read this organization's own orders.
+ */
+export async function regularMaterialsFor(ctx: Ctx) {
+  const rows = await db.orderItem.findMany({
+    where: { order: { buyerOrgId: ctx.orgId, status: { not: "CANCELLED" } } },
+    orderBy: { order: { createdAt: "desc" } },
+    take: 300,
+    select: {
+      name: true,
+      productId: true,
+      quantity: true,
+      unitCode: true,
+      unitPrice: true,
+      order: {
+        select: {
+          id: true,
+          createdAt: true,
+          supplierOrg: { select: { id: true, name: true } },
+        },
+      },
+    },
+  });
+  return regularMaterials(
+    rows.map((r) => ({
+      orderId: r.order.id,
+      orderedAt: r.order.createdAt,
+      supplierOrgId: r.order.supplierOrg.id,
+      supplierName: r.order.supplierOrg.name,
+      name: r.name,
+      productId: r.productId,
+      quantity: Number(r.quantity.toString()),
+      unitCode: r.unitCode,
+      unitPrice: Number(r.unitPrice.toString()),
+    })),
+    8,
+  );
 }

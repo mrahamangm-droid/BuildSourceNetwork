@@ -6,6 +6,8 @@ import { AppError } from "../errors";
 import { fieldErrorsFrom } from "./accounts";
 import { audit } from "./notify";
 import { assertWithinLimit } from "./plans";
+import { rankMatches, tokenize, type MatchCandidate } from "@/lib/match";
+import { rankAlternatives, type AltCandidate } from "@/lib/alternatives";
 
 const money = z.coerce.number().positive("Must be greater than 0").max(1e9);
 const optMoney = z.preprocess(
@@ -378,6 +380,7 @@ export async function getPublicProduct(id: string) {
           name: true,
           slug: true,
           type: true,
+          supplierKind: true,
           city: true,
           verificationStatus: true,
           isDemo: true,
@@ -396,4 +399,178 @@ export async function categoriesWithCounts() {
     },
   });
   return cats;
+}
+
+// ───────────────────────── smart matching and alternatives ─────────────────────────
+
+const num = (d: { toString(): string } | null | undefined) =>
+  d == null ? 0 : Number(d.toString());
+
+/**
+ * Smart Material Matching: finds active products for a free-text need and ranks them (see
+ * lib/match). Only public, active listings of active organizations are ever considered.
+ */
+export async function matchProducts(input: {
+  q: string;
+  city?: string;
+  qty?: number;
+  limit?: number;
+}) {
+  const tokens = tokenize(input.q);
+  if (!tokens.length) return [];
+  const rows = await db.product.findMany({
+    where: {
+      isActive: true,
+      org: { isActive: true },
+      OR: tokens.flatMap((t) => [
+        { name: { contains: t, mode: "insensitive" as const } },
+        { sku: { contains: t, mode: "insensitive" as const } },
+        { description: { contains: t, mode: "insensitive" as const } },
+        { brand: { name: { contains: t, mode: "insensitive" as const } } },
+        { category: { name: { contains: t, mode: "insensitive" as const } } },
+      ]),
+    },
+    take: 300,
+    select: {
+      id: true,
+      name: true,
+      sku: true,
+      description: true,
+      price: true,
+      currency: true,
+      minOrderQty: true,
+      stockStatus: true,
+      city: true,
+      deliveryAvailable: true,
+      unit: { select: { name: true } },
+      brand: { select: { name: true } },
+      category: { select: { name: true } },
+      images: { select: { url: true, alt: true }, orderBy: { sortOrder: "asc" }, take: 1 },
+      org: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          type: true,
+          supplierKind: true,
+          city: true,
+          verificationStatus: true,
+          deliveryAreas: true,
+          isDemo: true,
+        },
+      },
+    },
+  });
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  const cands: MatchCandidate[] = rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    sku: r.sku,
+    description: r.description,
+    brandName: r.brand?.name ?? null,
+    categoryName: r.category.name,
+    price: num(r.price),
+    minOrderQty: num(r.minOrderQty),
+    stockStatus: r.stockStatus,
+    city: r.city,
+    deliveryAvailable: r.deliveryAvailable,
+    orgId: r.org.id,
+    orgName: r.org.name,
+    orgCity: r.org.city,
+    orgVerified: r.org.verificationStatus === "VERIFIED",
+    deliveryAreas: r.org.deliveryAreas,
+  }));
+  return rankMatches(
+    cands,
+    { q: input.q, city: input.city, qty: input.qty },
+    input.limit ?? 10,
+  ).map((m) => ({ ...m, product: byId.get(m.item.id)! }));
+}
+
+/** Smart Alternatives for a product page: same category and unit, ranked by closeness. */
+export async function alternativesFor(productId: string, limit = 4) {
+  const base = await db.product.findFirst({
+    where: { id: productId, isActive: true, org: { isActive: true } },
+    select: {
+      id: true,
+      orgId: true,
+      brandId: true,
+      categoryId: true,
+      unitCode: true,
+      price: true,
+      city: true,
+      specifications: true,
+    },
+  });
+  if (!base) return [];
+  const rows = await db.product.findMany({
+    where: {
+      id: { not: base.id },
+      isActive: true,
+      categoryId: base.categoryId,
+      unitCode: base.unitCode,
+      stockStatus: { not: "OUT_OF_STOCK" },
+      org: { isActive: true },
+    },
+    take: 80,
+    orderBy: { updatedAt: "desc" },
+    select: {
+      id: true,
+      orgId: true,
+      brandId: true,
+      name: true,
+      price: true,
+      currency: true,
+      city: true,
+      stockStatus: true,
+      deliveryAvailable: true,
+      specifications: true,
+      unit: { select: { name: true } },
+      images: { select: { url: true, alt: true }, orderBy: { sortOrder: "asc" }, take: 1 },
+      org: {
+        select: {
+          name: true,
+          slug: true,
+          type: true,
+          city: true,
+          verificationStatus: true,
+          deliveryAreas: true,
+          isDemo: true,
+        },
+      },
+    },
+  });
+  const specs = (v: unknown): Record<string, string> =>
+    v && typeof v === "object" && !Array.isArray(v)
+      ? Object.fromEntries(
+          Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, String(x)]),
+        )
+      : {};
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  const cands: (AltCandidate & { id: string })[] = rows.map((r) => ({
+    id: r.id,
+    orgId: r.orgId,
+    brandId: r.brandId,
+    price: num(r.price),
+    city: r.city,
+    specifications: specs(r.specifications),
+    name: r.name,
+    stockStatus: r.stockStatus,
+    deliveryAvailable: r.deliveryAvailable,
+    orgVerified: r.org.verificationStatus === "VERIFIED",
+    orgCity: r.org.city,
+    deliveryAreas: r.org.deliveryAreas,
+  }));
+  return rankAlternatives(
+    {
+      id: base.id,
+      orgId: base.orgId,
+      brandId: base.brandId,
+      price: num(base.price),
+      city: base.city,
+      specifications: specs(base.specifications),
+    },
+    cands,
+    { limit },
+  ).map((a) => ({ ...a, product: byId.get(a.item.id)! }));
 }

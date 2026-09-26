@@ -41,6 +41,8 @@ export const rfqSchema = z.object({
   items: z.array(rfqItemSchema).min(1, "Add at least one material").max(30),
   /** direct RFQ to specific suppliers (e.g. from a supplier profile page) */
   supplierOrgIds: z.array(z.string()).max(10).optional().default([]),
+  /** project (BOQ) this request was raised from; must belong to the buyer's organization */
+  projectId: z.string().optional().default(""),
 });
 export type RfqInput = z.infer<typeof rfqSchema>;
 
@@ -152,6 +154,16 @@ export async function createRfq(ctx: Ctx, raw: unknown) {
     categoryId: i.categoryId || products.find((p) => p.id === i.productId)?.categoryId || "",
   }));
 
+  let projectId: string | null = null;
+  if (d.projectId) {
+    // Only link to the buyer's own project. Anything else is silently ignored, never an error leak.
+    const proj = await db.project.findFirst({
+      where: { id: d.projectId, orgId: ctx.orgId },
+      select: { id: true },
+    });
+    projectId = proj?.id ?? null;
+  }
+
   let supplierIds: string[];
   if (d.supplierOrgIds.length) {
     const valid = await db.organization.findMany({
@@ -192,6 +204,7 @@ export async function createRfq(ctx: Ctx, raw: unknown) {
       requiredDate,
       notes: d.notes || null,
       isGetQuotes: d.mode === "get3",
+      projectId,
       expiresAt: new Date(Date.now() + expiryDays * 864e5),
       items: {
         create: items.map((i) => ({
@@ -302,6 +315,8 @@ export async function getBuyerRfq(ctx: Ctx, id: string) {
               id: true,
               name: true,
               slug: true,
+              type: true,
+              supplierKind: true,
               verificationStatus: true,
               city: true,
               isDemo: true,

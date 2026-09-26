@@ -16,6 +16,8 @@ import { appUrl, formatMoney, formatQty } from "@/lib/utils";
 import { savingsPercent } from "@/lib/pricing";
 import { getCtx } from "@/server/access";
 import { ProductReviews } from "@/components/market/product-reviews";
+import { AddToCart } from "@/components/market/add-to-cart";
+import { BUYER_TYPES } from "@bmn/config";
 import { RatingLine } from "@/components/market/stars";
 import type { ReviewSort } from "@/server/services/reviews";
 
@@ -231,6 +233,21 @@ export default async function ProductPage({
                 </tbody>
               </table>
             </div>
+          ) : null}
+          {ctx && BUYER_TYPES.includes(ctx.orgType) && ctx.orgId !== p.orgId ? (
+            <AddToCart
+              productId={p.id}
+              minQty={Number(p.minOrderQty)}
+              unit={p.unit.name.toLowerCase()}
+              disabled={p.stockStatus === "OUT_OF_STOCK"}
+            />
+          ) : !ctx ? (
+            <p className="mt-4 text-sm text-muted">
+              <Link className="text-brand-700 hover:underline" href="/login">
+                Sign in
+              </Link>{" "}
+              as a buyer to add this to your cart or save it to a list.
+            </p>
           ) : null}
           <div className="mt-6 flex flex-wrap gap-2">
             <LinkButton href={`/request-quotes?productId=${p.id}`} size="lg">

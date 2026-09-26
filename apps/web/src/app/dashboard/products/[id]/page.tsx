@@ -13,8 +13,11 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
   const ctx = await requireCtx();
   const p = await getOwnProduct(ctx, (await params).id); // org-scoped: other companies' ids return null
   if (!p) notFound();
-  const [categories, units] = await Promise.all([
-    db.category.findMany({ orderBy: { sortOrder: "asc" }, select: { id: true, name: true } }),
+  const [categoryRows, units] = await Promise.all([
+    db.category.findMany({
+      orderBy: { sortOrder: "asc" },
+      select: { id: true, name: true, department: { select: { name: true } } },
+    }),
     db.unit.findMany({ orderBy: { name: "asc" }, select: { code: true, name: true } }),
   ]);
   const specs =
@@ -23,6 +26,11 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
           .map(([k, v]) => `${k}: ${v}`)
           .join("\n")
       : "";
+  const categories = categoryRows.map((c) => ({
+    id: c.id,
+    name: c.name,
+    group: c.department?.name,
+  }));
   return (
     <div className="max-w-3xl">
       <PageHeader title="Edit product" description={p.name} />
@@ -42,6 +50,8 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
           name: p.name,
           sku: p.sku,
           categoryId: p.categoryId,
+          subcategoryId: p.subcategoryId,
+          productTypeId: p.productTypeId,
           brandName: p.brand?.name,
           unitCode: p.unitCode,
           description: p.description,

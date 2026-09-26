@@ -88,15 +88,8 @@ export const CATEGORIES = [
   "Other construction materials",
 ] as const;
 
-export function slugify(input: string): string {
-  return input
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
-}
+export { slugify } from "./slug";
+export * from "./taxonomy";
 
 /**
  * Units are data, not code: the database stores them (Unit table) and this list only seeds it.

@@ -10,10 +10,18 @@ export const metadata: Metadata = { title: "Add product" };
 export default async function NewProductPage() {
   const ctx = await requireCtx();
   if (!["SUPPLIER", "STORE"].includes(ctx.orgType)) redirect("/dashboard");
-  const [categories, units] = await Promise.all([
-    db.category.findMany({ orderBy: { sortOrder: "asc" }, select: { id: true, name: true } }),
+  const [categoryRows, units] = await Promise.all([
+    db.category.findMany({
+      orderBy: { sortOrder: "asc" },
+      select: { id: true, name: true, department: { select: { name: true } } },
+    }),
     db.unit.findMany({ orderBy: { name: "asc" }, select: { code: true, name: true } }),
   ]);
+  const categories = categoryRows.map((c) => ({
+    id: c.id,
+    name: c.name,
+    group: c.department?.name,
+  }));
   return (
     <div className="max-w-3xl">
       <PageHeader title="Add product" />

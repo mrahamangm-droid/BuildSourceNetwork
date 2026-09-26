@@ -2,6 +2,7 @@
 import { useActionState } from "react";
 import { Card, Field, Input, Select, Textarea } from "@/components/ui";
 import { FormMessage, ImageUpload, SubmitButton, fe } from "@/components/forms/shared";
+import { TaxonomyPicker, type CategoryOption } from "@/components/forms/taxonomy-picker";
 import { saveProductAction, type ActionState } from "@/server/actions";
 
 export type ProductFormValues = {
@@ -9,6 +10,8 @@ export type ProductFormValues = {
   name?: string;
   sku?: string | null;
   categoryId?: string;
+  subcategoryId?: string | null;
+  productTypeId?: string | null;
   brandName?: string;
   unitCode?: string;
   description?: string | null;
@@ -32,7 +35,7 @@ export function ProductForm({
   units,
 }: {
   values: ProductFormValues;
-  categories: { id: string; name: string }[];
+  categories: CategoryOption[];
   units: { code: string; name: string }[];
 }) {
   const [state, action] = useActionState<ActionState, FormData>(saveProductAction, {});
@@ -49,19 +52,20 @@ export function ProductForm({
             placeholder="e.g. Ordinary Portland Cement 50kg"
           />
         </Field>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="Category" error={fe(state, "categoryId")}>
-            <Select name="categoryId" defaultValue={values.categoryId ?? ""} required>
-              <option value="" disabled>
-                Choose…
-              </option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
+        <TaxonomyPicker
+          categories={categories}
+          initial={{
+            categoryId: values.categoryId,
+            subcategoryId: values.subcategoryId,
+            productTypeId: values.productTypeId,
+          }}
+          errors={{
+            categoryId: fe(state, "categoryId"),
+            subcategoryId: fe(state, "subcategoryId"),
+            productTypeId: fe(state, "productTypeId"),
+          }}
+        />
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Brand">
             <Input name="brandName" defaultValue={values.brandName} />
           </Field>

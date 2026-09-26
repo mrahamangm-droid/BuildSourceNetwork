@@ -236,14 +236,51 @@ model Warehouse {
   @@index([branchId])
 }
 
+/// Top level of the catalogue tree: Department → Category → Subcategory → Product type.
+model Department {
+  id         String     @id @default(cuid())
+  slug       String     @unique
+  name       String
+  sortOrder  Int        @default(0)
+  categories Category[]
+}
+
 model Category {
   id            String         @id @default(cuid())
   slug          String         @unique
   name          String
   sortOrder     Int            @default(0)
+  departmentId  String?
+  department    Department?    @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  subcategories Subcategory[]
   products      Product[]
   organizations Organization[]
   rfqItems      RfqItem[]
+}
+
+model Subcategory {
+  id         String        @id @default(cuid())
+  categoryId String
+  slug       String
+  name       String
+  sortOrder  Int           @default(0)
+  category   Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  types      ProductType[]
+  products   Product[]
+
+  @@unique([categoryId, slug])
+}
+
+model ProductType {
+  id            String      @id @default(cuid())
+  subcategoryId String
+  slug          String
+  name          String
+  sortOrder     Int         @default(0)
+  subcategory   Subcategory @relation(fields: [subcategoryId], references: [id], onDelete: Cascade)
+  products      Product[]
+
+  @@unique([subcategoryId, slug])
 }
 
 model Brand {
@@ -270,6 +307,8 @@ model Product {
   id               String       @id @default(cuid())
   orgId            String
   categoryId       String
+  subcategoryId    String?
+  productTypeId    String?
   brandId          String?
   unitCode         String
   sku              String?
@@ -294,6 +333,8 @@ model Product {
 
   org      Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
   category Category       @relation(fields: [categoryId], references: [id])
+  subcategory Subcategory? @relation(fields: [subcategoryId], references: [id], onDelete: SetNull)
+  productType ProductType? @relation(fields: [productTypeId], references: [id], onDelete: SetNull)
   brand    Brand?         @relation(fields: [brandId], references: [id])
   unit     Unit           @relation(fields: [unitCode], references: [code])
   images   ProductImage[]
@@ -307,6 +348,8 @@ model Product {
   @@unique([orgId, slug])
   @@unique([orgId, sku])
   @@index([categoryId, isActive])
+  @@index([subcategoryId, isActive])
+  @@index([productTypeId, isActive])
   @@index([orgId, isActive])
   @@index([city])
   @@index([name])

@@ -26,6 +26,8 @@ export const productSchema = z.object({
   name: z.string().trim().min(2, "Enter a product name").max(160),
   sku: z.string().trim().max(60).optional().default(""),
   categoryId: z.string().min(1, "Choose a category"),
+  subcategoryId: z.string().trim().max(40).optional().default(""),
+  productTypeId: z.string().trim().max(40).optional().default(""),
   brandName: z.string().trim().max(80).optional().default(""),
   unitCode: z.string().min(1, "Choose a unit"),
   description: z.string().trim().max(4000).optional().default(""),
@@ -77,6 +79,31 @@ async function resolveRefs(d: ProductInput) {
   if (!cat)
     throw new AppError("Unknown category", "VALIDATION", { categoryId: "Choose a valid category" });
   if (!unit) throw new AppError("Unknown unit", "VALIDATION", { unitCode: "Choose a valid unit" });
+  // Subcategory and product type are optional, but when given they must sit under the chosen category.
+  if (d.productTypeId && !d.subcategoryId)
+    throw new AppError("Choose a subcategory first", "VALIDATION", {
+      subcategoryId: "Choose a subcategory before the product type",
+    });
+  if (d.subcategoryId) {
+    const sub = await db.subcategory.findFirst({
+      where: { id: d.subcategoryId, categoryId: d.categoryId },
+      select: { id: true },
+    });
+    if (!sub)
+      throw new AppError("Unknown subcategory", "VALIDATION", {
+        subcategoryId: "Choose a subcategory of the selected category",
+      });
+  }
+  if (d.productTypeId) {
+    const type = await db.productType.findFirst({
+      where: { id: d.productTypeId, subcategoryId: d.subcategoryId },
+      select: { id: true },
+    });
+    if (!type)
+      throw new AppError("Unknown product type", "VALIDATION", {
+        productTypeId: "Choose a product type of the selected subcategory",
+      });
+  }
   const brand = d.brandName
     ? await db.brand.upsert({
         where: { slug: slugify(d.brandName) },
@@ -84,7 +111,11 @@ async function resolveRefs(d: ProductInput) {
         create: { slug: slugify(d.brandName), name: d.brandName },
       })
     : null;
-  return { brandId: brand?.id ?? null };
+  return {
+    brandId: brand?.id ?? null,
+    subcategoryId: d.subcategoryId || null,
+    productTypeId: d.productTypeId || null,
+  };
 }
 
 const SELLER_TYPES = ["SUPPLIER", "STORE"] as const;
@@ -102,7 +133,7 @@ export async function createProduct(ctx: Ctx, raw: unknown) {
     );
   const d = parsed.data;
   await assertProductLimit(ctx);
-  const { brandId } = await resolveRefs(d);
+  const { brandId, subcategoryId, productTypeId } = await resolveRefs(d);
   if (d.sku) {
     const dup = await db.product.findFirst({
       where: { orgId: ctx.orgId, sku: d.sku },
@@ -121,6 +152,8 @@ export async function createProduct(ctx: Ctx, raw: unknown) {
     data: {
       orgId: ctx.orgId,
       categoryId: d.categoryId,
+      subcategoryId,
+      productTypeId,
       brandId,
       unitCode: d.unitCode,
       sku: d.sku || null,
@@ -164,7 +197,7 @@ export async function updateProduct(ctx: Ctx, id: string, raw: unknown) {
       fieldErrorsFrom(parsed.error),
     );
   const d = parsed.data;
-  const { brandId } = await resolveRefs(d);
+  const { brandId, subcategoryId, productTypeId } = await resolveRefs(d);
   if (d.sku && d.sku !== existing.sku) {
     const dup = await db.product.findFirst({
       where: { orgId: ctx.orgId, sku: d.sku, id: { not: id } },
@@ -181,6 +214,8 @@ export async function updateProduct(ctx: Ctx, id: string, raw: unknown) {
     where: { id },
     data: {
       categoryId: d.categoryId,
+      subcategoryId,
+      productTypeId,
       brandId,
       unitCode: d.unitCode,
       sku: d.sku || null,
@@ -259,6 +294,8 @@ export async function getOwnProduct(ctx: Ctx, id: string) {
 export type SearchFilters = {
   q?: string;
   category?: string;
+  subcategory?: string;
+  productType?: string;
   brand?: string;
   supplier?: string;
   city?: string;
@@ -288,6 +325,8 @@ export async function searchProducts(f: SearchFilters) {
           { description: { contains: t, mode: "insensitive" } },
           { brand: { name: { contains: t, mode: "insensitive" } } },
           { category: { name: { contains: t, mode: "insensitive" } } },
+          { subcategory: { name: { contains: t, mode: "insensitive" } } },
+          { productType: { name: { contains: t, mode: "insensitive" } } },
           { org: { name: { contains: t, mode: "insensitive" } } },
         ],
       });
@@ -301,6 +340,22 @@ export async function searchProducts(f: SearchFilters) {
       ...(f.supplier ? { slug: f.supplier } : {}),
     },
     ...(f.category ? { category: { slug: f.category } } : {}),
+    ...(f.subcategory
+      ? {
+          subcategory: {
+            slug: f.subcategory,
+            ...(f.category ? { category: { slug: f.category } } : {}),
+          },
+        }
+      : {}),
+    ...(f.productType
+      ? {
+          productType: {
+            slug: f.productType,
+            ...(f.subcategory ? { subcategory: { slug: f.subcategory } } : {}),
+          },
+        }
+      : {}),
     ...(f.brand ? { brand: { slug: f.brand } } : {}),
     ...(f.city
       ? {

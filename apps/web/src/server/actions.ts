@@ -207,6 +207,8 @@ function productPayload(fd: FormData) {
     name: str(fd, "name"),
     sku: str(fd, "sku"),
     categoryId: str(fd, "categoryId"),
+    subcategoryId: str(fd, "subcategoryId"),
+    productTypeId: str(fd, "productTypeId"),
     brandName: str(fd, "brandName"),
     unitCode: str(fd, "unitCode"),
     description: str(fd, "description"),

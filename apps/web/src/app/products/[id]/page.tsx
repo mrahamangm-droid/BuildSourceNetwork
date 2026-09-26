@@ -133,7 +133,9 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
                     <td className="px-3 py-2">
                       {formatQty(p.minOrderQty)}+ {p.unit.name.toLowerCase()}
                     </td>
-                    <td className="px-3 py-2 font-medium">{formatMoney(p.price.toString(), p.currency)}</td>
+                    <td className="px-3 py-2 font-medium">
+                      {formatMoney(p.price.toString(), p.currency)}
+                    </td>
                     <td className="px-3 py-2 text-muted" />
                   </tr>
                   {p.priceBreaks.map((b) => (

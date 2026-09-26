@@ -10,7 +10,12 @@ import { redirect } from "next/navigation";
 
 export const metadata: Metadata = { title: "Deliveries" };
 
-const tone = { PENDING: "neutral", ASSIGNED: "blue", OUT_FOR_DELIVERY: "amber", DELIVERED: "green" } as const;
+const tone = {
+  PENDING: "neutral",
+  ASSIGNED: "blue",
+  OUT_FOR_DELIVERY: "amber",
+  DELIVERED: "green",
+} as const;
 
 export default async function DeliveriesPage({
   searchParams,
@@ -29,10 +34,16 @@ export default async function DeliveriesPage({
         description="Scheduled and in-progress deliveries across your orders."
       />
       <div className="mb-4 flex gap-2 text-sm">
-        <Link href="/dashboard/deliveries" className={`rounded-full border px-3 py-1 ${!showAll ? "border-brand-600 text-brand-700" : "border-line"}`}>
+        <Link
+          href="/dashboard/deliveries"
+          className={`rounded-full border px-3 py-1 ${!showAll ? "border-brand-600 text-brand-700" : "border-line"}`}
+        >
           Active
         </Link>
-        <Link href="/dashboard/deliveries?all=1" className={`rounded-full border px-3 py-1 ${showAll ? "border-brand-600 text-brand-700" : "border-line"}`}>
+        <Link
+          href="/dashboard/deliveries?all=1"
+          className={`rounded-full border px-3 py-1 ${showAll ? "border-brand-600 text-brand-700" : "border-line"}`}
+        >
           All
         </Link>
       </div>
@@ -56,15 +67,28 @@ export default async function DeliveriesPage({
                   <tr key={d.id}>
                     <td className="px-4 py-3">{d.scheduledAt ? formatDate(d.scheduledAt) : "—"}</td>
                     <td className="px-4 py-3">
-                      <Link className="text-brand-700 hover:underline" href={`/dashboard/orders/${d.order.id}`}>
+                      <Link
+                        className="text-brand-700 hover:underline"
+                        href={`/dashboard/orders/${d.order.id}`}
+                      >
                         {d.order.number}
                       </Link>
                     </td>
-                    <td className="px-4 py-3">{asSupplier ? d.order.buyerOrg.name : d.order.supplierOrg.name}</td>
-                    <td className="px-4 py-3">{d.address || [d.order.deliveryCity, d.order.deliveryAddress].filter(Boolean).join(", ") || "—"}</td>
+                    <td className="px-4 py-3">
+                      {asSupplier ? d.order.buyerOrg.name : d.order.supplierOrg.name}
+                    </td>
+                    <td className="px-4 py-3">
+                      {d.address ||
+                        [d.order.deliveryCity, d.order.deliveryAddress]
+                          .filter(Boolean)
+                          .join(", ") ||
+                        "—"}
+                    </td>
                     <td className="px-4 py-3">{d.driverName ?? "—"}</td>
                     <td className="px-4 py-3">
-                      <Badge tone={tone[d.status as DeliveryStatusValue]}>{DELIVERY_LABEL[d.status as DeliveryStatusValue]}</Badge>
+                      <Badge tone={tone[d.status as DeliveryStatusValue]}>
+                        {DELIVERY_LABEL[d.status as DeliveryStatusValue]}
+                      </Badge>
                     </td>
                   </tr>
                 );

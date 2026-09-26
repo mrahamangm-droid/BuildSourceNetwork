@@ -9,3 +9,7 @@
 7. Enable database backups (Supabase PITR / daily) and an error monitor (Sentry or Vercel Observability).
 8. Replace the in-memory rate limiter (`apps/web/src/server/rate-limit.ts`) with Upstash/Redis before real traffic.
 9. Smoke test: register, verify email, add product, RFQ, quote, accept, order.
+
+## Before go-live
+
+See [LAUNCH-CHECKLIST.md](./LAUNCH-CHECKLIST.md). Private RFQ attachments need a second, non-public Supabase bucket (`SUPABASE_PRIVATE_BUCKET`, default `private-files`), and `GET /api/health` (with the `CRON_SECRET` bearer for details) reports configuration problems.

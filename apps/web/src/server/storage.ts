@@ -18,7 +18,13 @@ const ALLOWED: Record<string, { ext: string; magic: (b: Buffer) => boolean }> = 
     magic: (b) => b.subarray(0, 4).toString() === "RIFF" && b.subarray(8, 12).toString() === "WEBP",
   },
 };
+ALLOWED["application/pdf"] = {
+  ext: "pdf",
+  magic: (b) => b.subarray(0, 5).toString() === "%PDF-",
+};
 export const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
+/** PDFs stay under the 4.5 MB serverless request limit. */
+export const MAX_DOCUMENT_BYTES = 4 * 1024 * 1024;
 const LOCAL_DIR = path.resolve(process.cwd(), ".uploads");
 
 export type StoredFile = { url: string; contentType: string; sizeBytes: number };
@@ -26,13 +32,27 @@ export type StoredFile = { url: string; contentType: string; sizeBytes: number }
 export function validateImage(contentType: string, buf: Buffer): { ext: string } {
   const rule = ALLOWED[contentType];
   if (!rule) throw new Error("Only PNG, JPEG or WebP images are allowed.");
-  if (buf.length === 0 || buf.length > MAX_UPLOAD_BYTES)
+  if (contentType === "application/pdf") {
+    if (buf.length === 0 || buf.length > MAX_DOCUMENT_BYTES)
+      throw new Error("PDF must be under 4 MB.");
+  } else if (buf.length === 0 || buf.length > MAX_UPLOAD_BYTES)
     throw new Error("Image must be under 2 MB.");
   if (!rule.magic(buf)) throw new Error("File content does not match its type.");
   return { ext: rule.ext };
 }
 
 export async function storeImage(
+  orgId: string,
+  contentType: string,
+  buf: Buffer,
+): Promise<StoredFile> {
+  if (contentType === "application/pdf")
+    throw new Error("Only PNG, JPEG or WebP images are allowed.");
+  return storeFile(orgId, contentType, buf);
+}
+
+/** Images and PDF documents. */
+export async function storeFile(
   orgId: string,
   contentType: string,
   buf: Buffer,
@@ -69,13 +89,20 @@ export async function storeImage(
 export async function readLocalFile(
   key: string,
 ): Promise<{ buf: Buffer; contentType: string } | null> {
-  if (!/^[a-z0-9]+\/[a-f0-9]{24}\.(png|jpg|webp)$/.test(key)) return null;
+  if (!/^[a-z0-9]+\/[a-f0-9]{24}\.(png|jpg|webp|pdf)$/.test(key)) return null;
   try {
     const buf = await readFile(path.join(LOCAL_DIR, key));
     const ext = key.split(".").pop()!;
     return {
       buf,
-      contentType: ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg",
+      contentType:
+        ext === "png"
+          ? "image/png"
+          : ext === "webp"
+            ? "image/webp"
+            : ext === "pdf"
+              ? "application/pdf"
+              : "image/jpeg",
     };
   } catch {
     return null;

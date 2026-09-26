@@ -31,7 +31,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ]);
   const now = new Date();
   return [
-    ...["", "/marketplace", "/suppliers", "/stores", "/pricing", "/building-materials"].map(
+    ...["", "/marketplace", "/suppliers", "/manufacturers", "/stores", "/pricing", "/building-materials"].map(
       (p) => ({ url: `${base}${p}`, lastModified: now }),
     ),
     ...cats.map((c) => ({ url: `${base}/building-materials/${c.slug}`, lastModified: now })),

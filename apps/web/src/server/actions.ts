@@ -16,6 +16,12 @@ import * as orders from "./services/orders";
 import * as admin from "./services/admin";
 import * as inventory from "./services/inventory";
 import * as delivery from "./services/delivery";
+import * as customers from "./services/customers";
+import * as pricing from "./services/pricing";
+import * as projects from "./services/projects";
+import * as orderStock from "./services/order-stock";
+import * as plans from "./services/plans";
+import * as rfqAttachments from "./services/rfq-attachments";
 import type { DeliveryStatusValue } from "@/lib/delivery-rules";
 import { ORDER_STATUSES, type OrderStatus } from "@bmn/config";
 
@@ -155,6 +161,11 @@ export async function saveOrgProfileAction(_: ActionState, fd: FormData): Promis
       categoryIds: fd.getAll("categoryIds").map(String),
       logoUrl: str(fd, "logoUrl"),
       coverUrl: str(fd, "coverUrl"),
+      supplierKind: str(fd, "supplierKind"),
+      leadTimeDays: str(fd, "leadTimeDays"),
+      minOrderNote: str(fd, "minOrderNote"),
+      capacityNote: str(fd, "capacityNote"),
+      certifications: str(fd, "certifications"),
     });
     revalidatePath("/dashboard/profile");
     return { ok: true, message: "Profile saved." };
@@ -293,6 +304,17 @@ export async function cancelRfqAction(fd: FormData) {
   const ctx = await requireCtx();
   await rfq.cancelRfq(ctx, str(fd, "rfqId"));
   revalidatePath(`/dashboard/rfqs/${str(fd, "rfqId")}`);
+}
+
+export async function removeRfqAttachmentAction(fd: FormData) {
+  const rfqId = str(fd, "rfqId");
+  try {
+    const ctx = await requireCtx();
+    await rfqAttachments.removeAttachment(ctx, str(fd, "id"));
+  } catch (e) {
+    redirect(`/dashboard/rfqs/${rfqId}?error=${encodeURIComponent(fail(e).error ?? "Could not remove file")}`);
+  }
+  revalidatePath(`/dashboard/rfqs/${rfqId}`);
 }
 
 export async function acceptQuoteAction(fd: FormData) {
@@ -511,4 +533,247 @@ export async function advanceDeliveryAction(_: ActionState, fd: FormData): Promi
   revalidatePath(`/dashboard/orders/${str(fd, "orderId")}`);
   revalidatePath("/dashboard/deliveries");
   return { ok: true, message: "Delivery updated." };
+}
+
+// ───────── customers & credit ─────────
+
+const customerPayload = (fd: FormData) => ({
+  name: str(fd, "name"),
+  contactName: str(fd, "contactName"),
+  phone: str(fd, "phone"),
+  email: str(fd, "email"),
+  city: str(fd, "city"),
+  address: str(fd, "address"),
+  taxNumber: str(fd, "taxNumber"),
+  creditLimit: str(fd, "creditLimit"),
+  paymentTermsDays: str(fd, "paymentTermsDays") || 30,
+  notes: str(fd, "notes"),
+});
+
+export async function saveCustomerAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const id = str(fd, "id");
+  let target = id;
+  try {
+    const ctx = await requireCtx();
+    if (id) await customers.updateCustomer(ctx, id, customerPayload(fd));
+    else target = (await customers.createCustomer(ctx, customerPayload(fd))).id;
+  } catch (e) {
+    return fail(e);
+  }
+  revalidatePath("/dashboard/customers");
+  redirect(`/dashboard/customers/${target}`);
+}
+
+export async function createInvoiceAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const customerId = str(fd, "customerId");
+  try {
+    const ctx = await requireCtx();
+    const inv = await customers.createInvoice(ctx, customerId, {
+      description: str(fd, "description"),
+      reference: str(fd, "reference"),
+      subtotal: str(fd, "subtotal"),
+      vatPercent: str(fd, "vatPercent") || 5,
+      issuedAt: str(fd, "issuedAt"),
+      termsDays: str(fd, "termsDays"),
+      notes: str(fd, "notes"),
+      overrideCredit: fd.get("overrideCredit") === "on",
+    });
+    revalidatePath(`/dashboard/customers/${customerId}`);
+    return { ok: true, message: `Invoice ${inv.number} created.` };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function recordPaymentAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const customerId = str(fd, "customerId");
+  try {
+    const ctx = await requireCtx();
+    await customers.recordPayment(ctx, customerId, {
+      amount: str(fd, "amount"),
+      method: str(fd, "method"),
+      invoiceId: str(fd, "invoiceId"),
+      reference: str(fd, "reference"),
+      note: str(fd, "note"),
+      receivedAt: str(fd, "receivedAt"),
+    });
+    revalidatePath(`/dashboard/customers/${customerId}`);
+    return { ok: true, message: "Payment recorded." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function voidInvoiceAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requireCtx();
+    await customers.voidInvoice(ctx, str(fd, "invoiceId"), str(fd, "reason"));
+    revalidatePath(`/dashboard/customers/${str(fd, "customerId")}`);
+    return { ok: true, message: "Invoice voided." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function voidPaymentAction(fd: FormData) {
+  const ctx = await requireCtx();
+  await customers.voidPayment(ctx, str(fd, "paymentId"));
+  revalidatePath(`/dashboard/customers/${str(fd, "customerId")}`);
+}
+
+export async function savePriceBreaksAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const productId = str(fd, "productId");
+  const rows = Array.from({ length: 6 }, (_, i) => ({
+    minQty: str(fd, `minQty_${i}`),
+    price: str(fd, `price_${i}`),
+  }));
+  try {
+    const ctx = await requireCtx();
+    const n = await pricing.saveBreaks(ctx, productId, rows);
+    revalidatePath(`/dashboard/products/${productId}/pricing`);
+    revalidatePath(`/products/${productId}`);
+    return { ok: true, message: n ? `${n} price break${n === 1 ? "" : "s"} saved.` : "Price breaks cleared." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+const projectPayload = (fd: FormData) => ({
+  name: str(fd, "name"),
+  kind: str(fd, "kind"),
+  status: str(fd, "status") || "PLANNING",
+  city: str(fd, "city"),
+  startDate: str(fd, "startDate"),
+  budget: str(fd, "budget"),
+  notes: str(fd, "notes"),
+});
+
+export async function saveProjectAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const id = str(fd, "id");
+  let target = id;
+  try {
+    const ctx = await requireCtx();
+    if (id) await projects.updateProject(ctx, id, projectPayload(fd));
+    else target = (await projects.createProject(ctx, projectPayload(fd))).id;
+  } catch (e) {
+    return fail(e);
+  }
+  revalidatePath("/dashboard/projects");
+  revalidatePath(`/dashboard/projects/${target}`);
+  if (!id) redirect(`/dashboard/projects/${target}`);
+  return { ok: true, message: "Project saved." };
+}
+
+export async function addBoqItemAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const projectId = str(fd, "projectId");
+  try {
+    const ctx = await requireCtx();
+    await projects.addItem(ctx, projectId, {
+      section: str(fd, "section"),
+      description: str(fd, "description"),
+      unit: str(fd, "unit"),
+      quantity: str(fd, "quantity"),
+      wastePercent: str(fd, "wastePercent") || 0,
+      unitRate: str(fd, "unitRate"),
+    });
+  } catch (e) {
+    return fail(e);
+  }
+  revalidatePath(`/dashboard/projects/${projectId}`);
+  return { ok: true, message: "Line added." };
+}
+
+export async function updateBoqItemAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const projectId = str(fd, "projectId");
+  try {
+    const ctx = await requireCtx();
+    await projects.updateItem(ctx, str(fd, "itemId"), {
+      quantity: str(fd, "quantity"),
+      wastePercent: str(fd, "wastePercent") || 0,
+      unitRate: str(fd, "unitRate"),
+    });
+  } catch (e) {
+    return fail(e);
+  }
+  revalidatePath(`/dashboard/projects/${projectId}`);
+  return { ok: true, message: "Saved." };
+}
+
+export async function deleteBoqItemAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const projectId = str(fd, "projectId");
+  try {
+    const ctx = await requireCtx();
+    await projects.deleteItem(ctx, str(fd, "itemId"));
+  } catch (e) {
+    return fail(e);
+  }
+  revalidatePath(`/dashboard/projects/${projectId}`);
+  return { ok: true };
+}
+
+export async function starterBoqAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const projectId = str(fd, "projectId");
+  try {
+    const ctx = await requireCtx();
+    const n = await projects.generateStarter(ctx, projectId, {
+      areaM2: str(fd, "areaM2"),
+      floors: str(fd, "floors") || 1,
+    });
+    revalidatePath(`/dashboard/projects/${projectId}`);
+    return { ok: true, message: `${n} starter lines added. Enter your unit rates to price them.` };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function orderStockAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const orderId = str(fd, "orderId");
+  const intent = str(fd, "intent");
+  try {
+    const ctx = await requireCtx();
+    let n: number;
+    if (intent === "reserve") {
+      const mapping: Record<string, string> = {};
+      for (const [k, v] of fd.entries())
+        if (k.startsWith("product_") && typeof v === "string" && v) mapping[k.slice(8)] = v;
+      n = await orderStock.reserveOrderStock(ctx, orderId, mapping);
+    } else if (intent === "issue") n = await orderStock.issueOrderStock(ctx, orderId);
+    else if (intent === "release") n = await orderStock.releaseOrderStock(ctx, orderId);
+    else return { error: "Unknown stock action." };
+    revalidatePath(`/dashboard/orders/${orderId}`);
+    revalidatePath("/dashboard/inventory");
+    const verb = intent === "reserve" ? "reserved" : intent === "issue" ? "issued" : "released";
+    return { ok: true, message: `${n} line${n === 1 ? "" : "s"} ${verb}.` };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function requestPlanAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requireCtx();
+    await plans.requestPlan(ctx, { planCode: str(fd, "planCode"), note: str(fd, "note") });
+    revalidatePath("/dashboard/billing");
+    return { ok: true, message: "Request sent. We will confirm payment details and activate your plan." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function reviewPlanRequestAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const a = await requireAdmin();
+    const decision = str(fd, "decision") === "APPROVE" ? "APPROVE" : "REJECT";
+    await plans.reviewPlanRequest(
+      { userId: a.id, isPlatformAdmin: true },
+      str(fd, "requestId"),
+      decision,
+      str(fd, "note"),
+      str(fd, "paymentRef"),
+    );
+    revalidatePath("/admin/plans");
+    return { ok: true, message: decision === "APPROVE" ? "Plan activated." : "Request rejected." };
+  } catch (e) {
+    return fail(e);
+  }
 }

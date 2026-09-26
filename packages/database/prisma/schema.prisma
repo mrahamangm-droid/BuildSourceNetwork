@@ -12,6 +12,12 @@ datasource db {
   provider = "postgresql"
 }
 
+enum SupplierKind {
+  MANUFACTURER
+  DISTRIBUTOR
+  WHOLESALER
+}
+
 enum OrgType {
   SUPPLIER
   STORE
@@ -145,6 +151,11 @@ model Organization {
   currency           String             @default("AED")
   businessHours      String?
   deliveryAreas      String[]
+  supplierKind       SupplierKind?
+  leadTimeDays       Int?
+  minOrderNote       String?
+  capacityNote       String?
+  certifications     String[]
   verificationStatus VerificationStatus @default(UNVERIFIED)
   isActive           Boolean            @default(true)
   isDemo             Boolean            @default(false)
@@ -158,6 +169,12 @@ model Organization {
   subscription Subscription?
   verificationRequests VerificationRequest[]
   inventoryItems       InventoryItem[]
+  customers            Customer[]
+  invoices             Invoice[]
+  projects Project[]
+  planRequests PlanRequest[]
+  boqItems BoqItem[]
+  customerPayments     CustomerPayment[]
   stockMovements       StockMovement[]
 
   rfqs            Rfq[]              @relation("BuyerRfqs")
@@ -275,9 +292,11 @@ model Product {
   unit     Unit           @relation(fields: [unitCode], references: [code])
   images   ProductImage[]
   prices   PriceHistory[]
+  priceBreaks PriceBreak[]
   rfqItems RfqItem[]
   inventory InventoryItem[]
   movements StockMovement[]
+  orderItems OrderItem[]
 
   @@unique([orgId, slug])
   @@unique([orgId, sku])
@@ -295,6 +314,18 @@ model ProductImage {
   sortOrder Int     @default(0)
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
+  @@index([productId])
+}
+
+model PriceBreak {
+  id        String   @id @default(cuid())
+  productId String
+  minQty    Decimal  @db.Decimal(14, 3)
+  price     Decimal  @db.Decimal(14, 2)
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, minQty])
   @@index([productId])
 }
 
@@ -333,6 +364,7 @@ model Rfq {
   recipients RfqRecipient[]
   quotes     Quote[]
   orders     Order[]
+  attachments RfqAttachment[]
 
   @@index([buyerOrgId, status])
   @@index([status, expiresAt])
@@ -445,6 +477,13 @@ model Order {
   @@index([supplierOrgId, status])
 }
 
+enum OrderStockState {
+  NONE
+  RESERVED
+  ISSUED
+  RELEASED
+}
+
 model OrderItem {
   id        String  @id @default(cuid())
   orderId   String
@@ -453,10 +492,16 @@ model OrderItem {
   unitCode  String
   unitPrice Decimal @db.Decimal(14, 2)
   lineTotal Decimal @db.Decimal(14, 2)
+  // Supplier-side stock link. The state makes reserve/issue/release idempotent per line.
+  productId        String?
+  stockWarehouseId String?
+  stockState       OrderStockState @default(NONE)
   order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   unit      Unit    @relation(fields: [unitCode], references: [code])
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
 
   @@index([orderId])
+  @@index([productId])
 }
 
 model OrderEvent {
@@ -549,6 +594,7 @@ model SubscriptionPlan {
   features          String[]
   isActive          Boolean        @default(true)
   subscriptions     Subscription[]
+  requests          PlanRequest[]
 }
 
 model Subscription {
@@ -652,4 +698,170 @@ model StockMovement {
 
   @@index([orgId, createdAt])
   @@index([productId, createdAt])
+}
+
+// A seller's own customer book (walk-in, account or contractor customers). Separate from platform
+// organizations: a customer need not have a BuildSourceNetwork account.
+// creditLimit null = no limit enforced. Balance is always derived from invoices and payments.
+model Customer {
+  id               String    @id @default(cuid())
+  orgId            String
+  name             String
+  contactName      String?
+  phone            String?
+  email            String?
+  city             String?
+  address          String?
+  taxNumber        String?
+  creditLimit      Decimal?  @db.Decimal(14, 2)
+  paymentTermsDays Int       @default(30)
+  notes            String?
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  org      Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  invoices Invoice[]
+  payments CustomerPayment[]
+
+  @@unique([orgId, name])
+  @@index([orgId, isActive])
+}
+
+model Invoice {
+  id          String    @id @default(cuid())
+  orgId       String
+  customerId  String
+  number      String
+  reference   String?
+  description String?
+  issuedAt    DateTime  @default(now())
+  dueAt       DateTime
+  subtotal    Decimal   @db.Decimal(14, 2)
+  vatAmount   Decimal   @default(0) @db.Decimal(14, 2)
+  total       Decimal   @db.Decimal(14, 2)
+  notes       String?
+  voidedAt    DateTime?
+  voidReason  String?
+  createdById String?
+  createdAt   DateTime  @default(now())
+
+  org      Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  customer Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  payments CustomerPayment[]
+
+  @@unique([orgId, number])
+  @@index([orgId, customerId, issuedAt])
+  @@index([orgId, dueAt])
+}
+
+model CustomerPayment {
+  id          String    @id @default(cuid())
+  orgId       String
+  customerId  String
+  invoiceId   String?
+  amount      Decimal   @db.Decimal(14, 2)
+  method      String
+  reference   String?
+  note        String?
+  receivedAt  DateTime
+  voidedAt    DateTime?
+  createdById String?
+  createdAt   DateTime  @default(now())
+
+  org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  customer Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  invoice  Invoice?     @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  @@index([orgId, customerId, receivedAt])
+  @@index([invoiceId])
+}
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+}
+
+model Project {
+  id        String        @id @default(cuid())
+  orgId     String
+  name      String
+  kind      String        @default("OTHER")
+  status    ProjectStatus @default(PLANNING)
+  city      String?
+  startDate DateTime?
+  budget    Decimal?      @db.Decimal(14, 2)
+  notes     String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  items BoqItem[]
+
+  @@index([orgId, status])
+}
+
+model BoqItem {
+  id           String   @id @default(cuid())
+  projectId    String
+  orgId        String
+  section      String
+  description  String
+  unit         String
+  quantity     Decimal  @db.Decimal(14, 3)
+  wastePercent Decimal  @default(0) @db.Decimal(5, 2)
+  unitRate     Decimal? @db.Decimal(14, 2)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  project Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  org     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, sortOrder])
+  @@index([orgId])
+}
+
+enum PlanRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// A company asks for a paid plan; a platform admin activates it manually until online billing exists.
+model PlanRequest {
+  id            String            @id @default(cuid())
+  orgId         String
+  requestedById String
+  planCode      String
+  note          String?
+  status        PlanRequestStatus @default(PENDING)
+  reviewNote    String?
+  reviewedById  String?
+  reviewedAt    DateTime?
+  createdAt     DateTime          @default(now())
+
+  org  Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  plan SubscriptionPlan @relation(fields: [planCode], references: [code])
+
+  @@index([status, createdAt])
+  @@index([orgId, createdAt])
+}
+
+/// Private files (drawings, specs) attached to an RFQ. Served only through an authorized route.
+model RfqAttachment {
+  id           String   @id @default(cuid())
+  rfqId        String
+  uploadedById String
+  filename     String
+  contentType  String
+  sizeBytes    Int
+  storageKey   String   @unique
+  createdAt    DateTime @default(now())
+
+  rfq Rfq @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+
+  @@index([rfqId])
 }

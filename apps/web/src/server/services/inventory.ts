@@ -25,7 +25,7 @@ function guard(ctx: Ctx) {
 }
 
 /** Orgs start with no branch. Create a default branch + warehouse the first time it is needed. */
-export async function ensureWarehouse(ctx: Ctx, tx: Tx | typeof db = db) {
+export async function ensureWarehouse(ctx: { orgId: string }, tx: Tx | typeof db = db) {
   const existing = await tx.warehouse.findFirst({
     where: { branch: { orgId: ctx.orgId } },
     orderBy: { createdAt: "asc" },
@@ -38,7 +38,7 @@ export async function ensureWarehouse(ctx: Ctx, tx: Tx | typeof db = db) {
   });
 }
 
-async function ownedWarehouse(ctx: Ctx, tx: Tx, warehouseId?: string) {
+async function ownedWarehouse(ctx: { orgId: string }, tx: Tx, warehouseId?: string) {
   if (!warehouseId) return ensureWarehouse(ctx, tx);
   const w = await tx.warehouse.findFirst({
     where: { id: warehouseId, branch: { orgId: ctx.orgId } },
@@ -79,6 +79,62 @@ export const movementSchema = z.object({
 });
 export type MovementInput = z.infer<typeof movementSchema>;
 
+/**
+ * One stock movement inside a caller-supplied transaction. Used by move() and by order-driven
+ * reserve/issue/release, so every stock change goes through the same arithmetic and ledger.
+ * The caller owns the transaction and must make it Serializable.
+ */
+export async function moveInTx(
+  tx: Tx,
+  actor: { orgId: string; userId: string | null },
+  kind: MovementKind,
+  d: MovementInput,
+) {
+
+  const product = await tx.product.findFirst({
+    where: { id: d.productId, orgId: actor.orgId },
+    select: { id: true, name: true },
+  });
+  if (!product) throw new AppError("Product not found.", "NOT_FOUND");
+  const wh = await ownedWarehouse(actor, tx, d.warehouseId || undefined);
+
+  const item =
+    (await tx.inventoryItem.findUnique({
+      where: { warehouseId_productId: { warehouseId: wh.id, productId: product.id } },
+    })) ??
+    (await tx.inventoryItem.create({
+      data: { orgId: actor.orgId, warehouseId: wh.id, productId: product.id },
+    }));
+
+  const { balance, onHandDelta, reservedDelta } = applyMovement(
+    { onHand: M(item.onHand), reserved: M(item.reserved) },
+    kind,
+    toMilli(d.quantity),
+  );
+  await tx.inventoryItem.update({
+    where: { id: item.id },
+    data: { onHand: D(balance.onHand), reserved: D(balance.reserved) },
+  });
+  await tx.stockMovement.create({
+    data: {
+      orgId: actor.orgId,
+      warehouseId: wh.id,
+      productId: product.id,
+      type: kind,
+      onHandDelta: D(onHandDelta),
+      reservedDelta: D(reservedDelta),
+      onHandAfter: D(balance.onHand),
+      unitCost: kind === "RECEIPT" && d.unitCost != null ? d.unitCost : null,
+      reference: d.reference || null,
+      note: d.note || null,
+      actorId: actor.userId,
+    },
+  });
+  await syncProductStatus(tx, actor.orgId, product.id);
+  return { productName: product.name, onHand: fromMilli(balance.onHand), warehouseId: wh.id };
+
+}
+
 /** Every stock change runs here: lock-free but Serializable, so concurrent issues cannot oversell. */
 export async function move(ctx: Ctx, kind: MovementKind, raw: unknown) {
   guard(ctx);
@@ -88,52 +144,9 @@ export async function move(ctx: Ctx, kind: MovementKind, raw: unknown) {
   const d = parsed.data;
 
   try {
-    const result = await db.$transaction(
-      async (tx) => {
-        const product = await tx.product.findFirst({
-          where: { id: d.productId, orgId: ctx.orgId },
-          select: { id: true, name: true },
-        });
-        if (!product) throw new AppError("Product not found.", "NOT_FOUND");
-        const wh = await ownedWarehouse(ctx, tx, d.warehouseId || undefined);
-
-        const item =
-          (await tx.inventoryItem.findUnique({
-            where: { warehouseId_productId: { warehouseId: wh.id, productId: product.id } },
-          })) ??
-          (await tx.inventoryItem.create({
-            data: { orgId: ctx.orgId, warehouseId: wh.id, productId: product.id },
-          }));
-
-        const { balance, onHandDelta, reservedDelta } = applyMovement(
-          { onHand: M(item.onHand), reserved: M(item.reserved) },
-          kind,
-          toMilli(d.quantity),
-        );
-        await tx.inventoryItem.update({
-          where: { id: item.id },
-          data: { onHand: D(balance.onHand), reserved: D(balance.reserved) },
-        });
-        await tx.stockMovement.create({
-          data: {
-            orgId: ctx.orgId,
-            warehouseId: wh.id,
-            productId: product.id,
-            type: kind,
-            onHandDelta: D(onHandDelta),
-            reservedDelta: D(reservedDelta),
-            onHandAfter: D(balance.onHand),
-            unitCost: kind === "RECEIPT" && d.unitCost != null ? d.unitCost : null,
-            reference: d.reference || null,
-            note: d.note || null,
-            actorId: ctx.userId,
-          },
-        });
-        await syncProductStatus(tx, ctx.orgId, product.id);
-        return { productName: product.name, onHand: fromMilli(balance.onHand) };
-      },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-    );
+    const result = await db.$transaction((tx) => moveInTx(tx, ctx, kind, d), {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    });
     await audit({
       orgId: ctx.orgId,
       actorId: ctx.userId,

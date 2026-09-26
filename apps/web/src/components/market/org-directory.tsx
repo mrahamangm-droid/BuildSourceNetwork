@@ -2,29 +2,38 @@ import { db } from "@bmn/database";
 import { Button, EmptyState, Input, Select } from "@/components/ui";
 import { Breadcrumbs, OrgCard, Pagination } from "@/components/market/parts";
 import { listPublicOrgs } from "@/server/services/orgs";
+import { SUPPLIER_KINDS, SUPPLIER_KIND_LABEL, type SupplierKind } from "@bmn/config";
+import { parseKind } from "@/lib/manufacturer";
 
 export async function OrgDirectory({
   type,
   sp,
   basePath,
   title,
+  forceKind,
+  listPath,
 }: {
   type: "SUPPLIER" | "STORE";
   sp: Record<string, string | undefined>;
   basePath: "suppliers" | "stores";
   title: string;
+  /** Pin the directory to one supplier kind (used by /manufacturers). */
+  forceKind?: SupplierKind;
+  listPath?: string;
 }) {
+  const kind = forceKind ?? (type === "SUPPLIER" ? (parseKind(sp.kind ?? "") ?? undefined) : undefined);
   const [res, cats, cityRows] = await Promise.all([
     listPublicOrgs({
       type,
       city: sp.city,
       categorySlug: sp.category,
+      kind,
       q: sp.q,
       page: Number(sp.page) || 1,
     }),
     db.category.findMany({ orderBy: { sortOrder: "asc" }, select: { slug: true, name: true } }),
     db.organization.findMany({
-      where: { type, isActive: true, city: { not: null } },
+      where: { type, isActive: true, city: { not: null }, ...(kind ? { supplierKind: kind } : {}) },
       distinct: ["city"],
       select: { city: true },
       orderBy: { city: "asc" },
@@ -34,7 +43,7 @@ export async function OrgDirectory({
     <div className="mx-auto max-w-6xl px-4 py-8">
       <Breadcrumbs items={[{ name: "Home", href: "/" }, { name: title }]} />
       <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
-      <form className="mt-4 grid gap-2 sm:grid-cols-[1fr_200px_200px_auto]" method="get">
+      <form className="mt-4 grid gap-2 sm:grid-cols-[1fr_160px_160px_160px_auto]" method="get">
         <Input
           name="q"
           defaultValue={sp.q}
@@ -49,6 +58,19 @@ export async function OrgDirectory({
             </option>
           ))}
         </Select>
+        {type === "SUPPLIER" && !forceKind ? (
+          <Select name="kind" defaultValue={kind ?? ""} aria-label="Supplier type">
+            {[["", "All types"], ...SUPPLIER_KINDS.map((k) => [k, SUPPLIER_KIND_LABEL[k]])].map(
+              ([v, l]) => (
+                <option key={v} value={v}>
+                  {l}
+                </option>
+              ),
+            )}
+          </Select>
+        ) : (
+          <div className="hidden sm:block" />
+        )}
         <Select name="city" defaultValue={sp.city ?? ""} aria-label="Location">
           <option value="">Any location</option>
           {cityRows.map((c) => (
@@ -77,7 +99,7 @@ export async function OrgDirectory({
         page={res.page}
         pages={Math.max(1, Math.ceil(res.total / res.pageSize))}
         params={sp}
-        basePath={`/${basePath}`}
+        basePath={listPath ?? `/${basePath}`}
       />
     </div>
   );

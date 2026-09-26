@@ -16,6 +16,7 @@ import { appUrl, formatMoney, formatQty } from "@/lib/utils";
 import { savingsPercent } from "@/lib/pricing";
 import { getCtx } from "@/server/access";
 import { ProductReviews } from "@/components/market/product-reviews";
+import { CompareToggle } from "@/components/market/compare-toggle";
 import { AddToCart } from "@/components/market/add-to-cart";
 import { BUYER_TYPES } from "@bmn/config";
 import { RatingLine } from "@/components/market/stars";
@@ -249,6 +250,9 @@ export default async function ProductPage({
               as a buyer to add this to your cart or save it to a list.
             </p>
           ) : null}
+          <div className="mt-4">
+            <CompareToggle id={p.id} />
+          </div>
           <div className="mt-6 flex flex-wrap gap-2">
             <LinkButton href={`/request-quotes?productId=${p.id}`} size="lg">
               Get 3 Quotes

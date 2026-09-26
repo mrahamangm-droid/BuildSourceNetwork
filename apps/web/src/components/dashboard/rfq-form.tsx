@@ -25,6 +25,7 @@ export function RfqForm({
   supplierName,
   initialMode,
   defaultCity,
+  projectId,
 }: {
   categories: { id: string; name: string }[];
   units: { code: string; name: string }[];
@@ -37,6 +38,8 @@ export function RfqForm({
   supplierName?: string;
   initialMode: "get3" | "custom";
   defaultCity: string;
+  /** links the new RFQ to a project so the project workspace can track it */
+  projectId?: string;
 }) {
   const [state, action] = useActionState<ActionState, FormData>(createRfqAction, {});
   const [items, setItems] = useState<Item[]>(
@@ -62,6 +65,7 @@ export function RfqForm({
     <form action={action} className="space-y-6">
       <input type="hidden" name="items" value={payload} />
       <input type="hidden" name="mode" value={mode} />
+      {projectId ? <input type="hidden" name="projectId" value={projectId} /> : null}
       {supplierOrgId ? <input type="hidden" name="supplierOrgIds" value={supplierOrgId} /> : null}
 
       {supplierOrgId ? (

@@ -23,6 +23,8 @@ export const orgProfileSchema = z.object({
   addressLine: z.string().trim().max(200).optional().default(""),
   city: z.string().trim().min(2, "Enter a city").max(80),
   businessHours: z.string().trim().max(200).optional().default(""),
+  tagline: z.string().trim().max(140).optional().default(""),
+  policies: z.string().trim().max(1500).optional().default(""),
   deliveryAreas: z.string().trim().max(500).optional().default(""),
   categoryIds: z.array(z.string()).optional().default([]),
   logoUrl: optionalUrl.optional(),
@@ -66,6 +68,8 @@ export async function updateOrgProfile(ctx: Ctx, raw: unknown) {
       city: d.city,
       region: d.city,
       businessHours: d.businessHours || null,
+      tagline: d.tagline || null,
+      policies: d.policies || null,
       deliveryAreas: d.deliveryAreas
         .split(",")
         .map((s) => s.trim())
@@ -135,6 +139,8 @@ const PUBLIC_ORG_SELECT = {
   addressLine: true,
   city: true,
   businessHours: true,
+  tagline: true,
+  policies: true,
   deliveryAreas: true,
   supplierKind: true,
   leadTimeDays: true,

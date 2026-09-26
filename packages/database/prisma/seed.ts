@@ -5,7 +5,7 @@
  */
 import "dotenv/config";
 import bcrypt from "bcryptjs";
-import { CATEGORIES } from "@bmn/config";
+import { CATEGORIES, slugify } from "@bmn/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/client";
 import { seedReference } from "./reference";

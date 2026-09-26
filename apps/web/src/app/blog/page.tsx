@@ -8,7 +8,8 @@ import { formatDate } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Buying guides for building materials",
-  description: "Practical guides on requesting quotes, comparing suppliers and buying construction materials.",
+  description:
+    "Practical guides on requesting quotes, comparing suppliers and buying construction materials.",
   alternates: { canonical: "/blog" },
 };
 

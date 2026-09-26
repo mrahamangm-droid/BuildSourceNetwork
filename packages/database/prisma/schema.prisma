@@ -190,6 +190,7 @@ model Organization {
   supplierOrders  Order[]            @relation("SupplierOrders")
   reviewsWritten  Review[]           @relation("ReviewAuthor")
   reviewsReceived Review[]           @relation("ReviewSubject")
+  importJobs      ImportJob[]
   productReviews  ProductReview[]    @relation("ProductReviewAuthor")
   documents       Document[]
   notifications   Notification[]
@@ -1031,4 +1032,87 @@ model BlogPost {
   author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
 
   @@index([status, publishedAt])
+}
+
+// ───────────── Bulk import (spreadsheet upload engine) ─────────────
+
+enum ImportMode {
+  CREATE
+  UPSERT
+  UPDATE
+}
+
+enum ImportStatus {
+  UPLOADING
+  VALIDATING
+  READY
+  PROCESSING
+  COMPLETED
+  COMPLETED_WITH_ERRORS
+  FAILED
+  CANCELLED
+  ROLLING_BACK
+  ROLLED_BACK
+}
+
+enum ImportRowStatus {
+  PENDING
+  VALID
+  INVALID
+  CREATED
+  UPDATED
+  FAILED
+  ROLLED_BACK
+  SKIPPED
+}
+
+// One uploaded file. Rows are staged in ImportRow, validated in chunks, applied in transactional
+// chunks, and can be rolled back from the per-row snapshots.
+model ImportJob {
+  id          String       @id @default(cuid())
+  orgId       String
+  userId      String
+  kind        String       @default("PRODUCTS")
+  filename    String
+  mode        ImportMode   @default(CREATE)
+  status      ImportStatus @default(UPLOADING)
+  headers     Json
+  columnMap   Json
+  options     Json?
+  totalRows   Int          @default(0)
+  message     String?
+  lockedAt    DateTime?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  rows ImportRow[]
+
+  @@index([orgId, createdAt])
+  @@index([status, updatedAt])
+}
+
+model ImportRow {
+  id         String          @id @default(cuid())
+  jobId      String
+  rowNumber  Int
+  status     ImportRowStatus @default(PENDING)
+  action     String?
+  raw        Json?
+  values     Json?
+  errors     Json?
+  warnings   Json?
+  dupKey     String?
+  productId  String?
+  before     Json?
+  message    String?
+  appliedAt  DateTime?
+
+  job ImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, rowNumber])
+  @@index([jobId, status, rowNumber])
+  @@index([jobId, dupKey])
 }

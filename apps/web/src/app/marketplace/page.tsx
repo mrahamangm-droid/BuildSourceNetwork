@@ -46,7 +46,9 @@ async function distinctValues(
     orderBy: { [key]: "asc" } as Prisma.ProductOrderByWithRelationInput,
     take: 100,
   });
-  return rows.map((r) => (r as Record<string, string | null>)[key]).filter((v): v is string => !!v);
+  return rows
+    .map((r) => (r as unknown as Record<string, string | null>)[key])
+    .filter((v): v is string => !!v);
 }
 
 const num = (v?: string) =>

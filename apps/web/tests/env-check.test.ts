@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { resolveDatabaseUrl } from "@bmn/config";
 import { checkEnv, hasErrors } from "../src/lib/env-check";
 
 const base = {
@@ -44,5 +45,28 @@ describe("checkEnv", () => {
     expect(JSON.stringify(checkEnv({ ...base, AUTH_SECRET: "topsecret" }))).not.toContain(
       "topsecret",
     );
+  });
+});
+
+describe("resolveDatabaseUrl", () => {
+  const pg = "postgres://u:p@host:5432/db";
+  it("prefers DATABASE_URL", () => {
+    expect(resolveDatabaseUrl({ DATABASE_URL: pg, x_DATABASE_URL: "postgres://other" })).toBe(pg);
+  });
+  it("falls back to a prefixed Vercel integration variable", () => {
+    expect(resolveDatabaseUrl({ buildsourcenetwork_DATABASE_URL: pg })).toBe(pg);
+    expect(resolveDatabaseUrl({ POSTGRES_URL: pg })).toBe(pg);
+  });
+  it("skips prisma+postgres urls and non-postgres values", () => {
+    expect(
+      resolveDatabaseUrl({
+        a_PRISMA_DATABASE_URL: "prisma+postgres://accelerate.x",
+        a_DATABASE_URL: "nope",
+      }),
+    ).toBeUndefined();
+  });
+  it("counts as configured for checkEnv", () => {
+    const f = checkEnv({ ...base, DATABASE_URL: undefined, app_DATABASE_URL: pg } as never);
+    expect(f.find((x) => x.key === "DATABASE_URL")).toBeUndefined();
   });
 });

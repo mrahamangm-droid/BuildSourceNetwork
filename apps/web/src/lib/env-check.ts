@@ -1,3 +1,4 @@
+import { resolveDatabaseUrl } from "@bmn/config";
 /**
  * Launch-readiness check for environment variables. Pure: takes an env object and
  * returns findings, never reads process.env itself, so it is unit-testable and can
@@ -16,7 +17,7 @@ export function checkEnv(env: Env): EnvFinding[] {
     out.push({ key, severity, message });
   const prod = env.NODE_ENV === "production";
 
-  if (!has(env, "DATABASE_URL")) add("DATABASE_URL", "error", "Missing: the app cannot start.");
+  if (!resolveDatabaseUrl(env)) add("DATABASE_URL", "error", "Missing: the app cannot start.");
   if (!has(env, "AUTH_SECRET")) add("AUTH_SECRET", "error", "Missing: sessions cannot be signed.");
   else if (env.AUTH_SECRET!.length < 32)
     add("AUTH_SECRET", prod ? "error" : "warn", "Shorter than 32 characters.");

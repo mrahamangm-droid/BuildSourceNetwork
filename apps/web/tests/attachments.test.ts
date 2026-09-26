@@ -23,7 +23,9 @@ describe("validateAttachment", () => {
     expect(validateAttachment("noext", pdf).ok).toBe(false);
   });
   it("checks png, jpg, zip-based office files and dwg signatures", () => {
-    expect(validateAttachment("a.png", bytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)).ok).toBe(true);
+    expect(
+      validateAttachment("a.png", bytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)).ok,
+    ).toBe(true);
     expect(validateAttachment("a.jpg", bytes(0xff, 0xd8, 0xff)).ok).toBe(true);
     expect(validateAttachment("a.xlsx", bytes(0x50, 0x4b, 0x03, 0x04)).ok).toBe(true);
     expect(validateAttachment("a.dwg", new TextEncoder().encode("AC1027....")).ok).toBe(true);

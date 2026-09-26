@@ -1,9 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { leadTimeLabel, MAX_CERTIFICATIONS, parseCertifications, parseKind, parseLeadTime } from "../src/lib/manufacturer";
+import {
+  leadTimeLabel,
+  MAX_CERTIFICATIONS,
+  parseCertifications,
+  parseKind,
+  parseLeadTime,
+} from "../src/lib/manufacturer";
 
 describe("parseCertifications", () => {
   it("splits on commas, semicolons and newlines and trims", () => {
-    expect(parseCertifications("ISO 9001, ISO 14001 ; CE\nBS 4449")).toEqual(["ISO 9001", "ISO 14001", "CE", "BS 4449"]);
+    expect(parseCertifications("ISO 9001, ISO 14001 ; CE\nBS 4449")).toEqual([
+      "ISO 9001",
+      "ISO 14001",
+      "CE",
+      "BS 4449",
+    ]);
   });
   it("de-duplicates case-insensitively and collapses spaces", () => {
     expect(parseCertifications("ISO  9001, iso 9001,")).toEqual(["ISO 9001"]);

@@ -5,14 +5,25 @@ import { requireCtx } from "@/server/access";
 import { getCustomerLedger } from "@/server/services/customers";
 import { voidPaymentAction } from "@/server/actions";
 import { Badge, Button, Card, PageHeader } from "@/components/ui";
-import { CustomerForm, InvoiceForm, PaymentForm, VoidInvoiceForm } from "@/components/dashboard/customer-forms";
+import {
+  CustomerForm,
+  InvoiceForm,
+  PaymentForm,
+  VoidInvoiceForm,
+} from "@/components/dashboard/customer-forms";
 import { AGING_BUCKETS, fromCents } from "@/lib/ledger";
 import { formatDate, formatMoney } from "@/lib/utils";
 import { roleHas } from "@bmn/config";
 
 export const metadata: Metadata = { title: "Customer" };
 
-const statusTone = { PAID: "green", OPEN: "blue", PARTIAL: "blue", OVERDUE: "red", VOID: "neutral" } as const;
+const statusTone = {
+  PAID: "green",
+  OPEN: "blue",
+  PARTIAL: "blue",
+  OVERDUE: "red",
+  VOID: "neutral",
+} as const;
 
 export default async function CustomerPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireCtx();
@@ -24,29 +35,54 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
   const c = l.customer;
   const canVoid = ctx.role === "OWNER" || ctx.role === "ADMIN";
   const open = l.invoices.filter((i) => i.status !== "VOID" && i.outstanding > 0);
-  const usedPct = l.creditLimit && l.creditLimit > 0 ? Math.min(Math.round((Math.max(l.balance, 0) / l.creditLimit) * 100), 100) : null;
+  const usedPct =
+    l.creditLimit && l.creditLimit > 0
+      ? Math.min(Math.round((Math.max(l.balance, 0) / l.creditLimit) * 100), 100)
+      : null;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title={c.name}
-        description={[c.contactName, c.phone, c.email, c.city].filter(Boolean).join(" · ") || undefined}
-        action={<Link href="/dashboard/customers" className="text-sm text-brand-700 hover:underline">All customers</Link>}
+        description={
+          [c.contactName, c.phone, c.email, c.city].filter(Boolean).join(" · ") || undefined
+        }
+        action={
+          <Link href="/dashboard/customers" className="text-sm text-brand-700 hover:underline">
+            All customers
+          </Link>
+        }
       />
 
       <div className="grid gap-3 sm:grid-cols-3">
         <Card>
           <p className="text-xs uppercase text-muted">Balance owing</p>
-          <p className={`mt-1 text-2xl font-bold ${l.balance > 0 ? "" : "text-emerald-700"}`}>{formatMoney(l.balance)}</p>
+          <p className={`mt-1 text-2xl font-bold ${l.balance > 0 ? "" : "text-emerald-700"}`}>
+            {formatMoney(l.balance)}
+          </p>
           {l.balance < 0 ? <p className="text-xs text-muted">Customer is in credit</p> : null}
         </Card>
         <Card>
           <p className="text-xs uppercase text-muted">Credit limit</p>
-          <p className="mt-1 text-2xl font-bold">{l.creditLimit == null ? "No limit" : formatMoney(l.creditLimit)}</p>
-          {l.available != null ? <p className="text-xs text-muted">{formatMoney(l.available)} available</p> : null}
+          <p className="mt-1 text-2xl font-bold">
+            {l.creditLimit == null ? "No limit" : formatMoney(l.creditLimit)}
+          </p>
+          {l.available != null ? (
+            <p className="text-xs text-muted">{formatMoney(l.available)} available</p>
+          ) : null}
           {usedPct != null ? (
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-valuenow={usedPct} aria-valuemin={0} aria-valuemax={100} aria-label="Credit used">
-              <div className={`h-full ${usedPct >= 100 ? "bg-red-500" : usedPct >= 80 ? "bg-amber-500" : "bg-emerald-500"}`} style={{ width: `${usedPct}%` }} />
+            <div
+              className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"
+              role="progressbar"
+              aria-valuenow={usedPct}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label="Credit used"
+            >
+              <div
+                className={`h-full ${usedPct >= 100 ? "bg-red-500" : usedPct >= 80 ? "bg-amber-500" : "bg-emerald-500"}`}
+                style={{ width: `${usedPct}%` }}
+              />
             </div>
           ) : null}
         </Card>
@@ -62,7 +98,9 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
           {AGING_BUCKETS.map((b, i) => (
             <div key={b}>
               <p className="text-xs text-muted">{b}</p>
-              <p className={`font-semibold ${i > 0 && l.aging[i] > 0 ? "text-red-700" : ""}`}>{formatMoney(l.aging[i])}</p>
+              <p className={`font-semibold ${i > 0 && l.aging[i] > 0 ? "text-red-700" : ""}`}>
+                {formatMoney(l.aging[i])}
+              </p>
             </div>
           ))}
         </div>
@@ -70,7 +108,14 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
 
       <div className="grid gap-4 lg:grid-cols-2">
         <InvoiceForm customerId={c.id} defaultTerms={c.paymentTermsDays} canOverride={canVoid} />
-        <PaymentForm customerId={c.id} openInvoices={open.map((i) => ({ id: i.id, number: i.number, outstanding: i.outstanding }))} />
+        <PaymentForm
+          customerId={c.id}
+          openInvoices={open.map((i) => ({
+            id: i.id,
+            number: i.number,
+            outstanding: i.outstanding,
+          }))}
+        />
       </div>
 
       <section>
@@ -93,15 +138,30 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
                   <tr key={i.id} className={i.status === "VOID" ? "opacity-60" : ""}>
                     <td className="px-4 py-3">
                       <div className="font-medium">{i.number}</div>
-                      <div className="text-xs text-muted">{i.description}{i.reference ? ` · ${i.reference}` : ""}</div>
-                      {i.status === "VOID" && i.voidReason ? <div className="text-xs text-muted">Voided: {i.voidReason}</div> : null}
-                      {canVoid && i.status !== "VOID" ? <div className="mt-2"><VoidInvoiceForm customerId={c.id} invoiceId={i.id} /></div> : null}
+                      <div className="text-xs text-muted">
+                        {i.description}
+                        {i.reference ? ` · ${i.reference}` : ""}
+                      </div>
+                      {i.status === "VOID" && i.voidReason ? (
+                        <div className="text-xs text-muted">Voided: {i.voidReason}</div>
+                      ) : null}
+                      {canVoid && i.status !== "VOID" ? (
+                        <div className="mt-2">
+                          <VoidInvoiceForm customerId={c.id} invoiceId={i.id} />
+                        </div>
+                      ) : null}
                     </td>
                     <td className="px-4 py-3">{formatDate(i.issuedAt)}</td>
                     <td className="px-4 py-3">{formatDate(i.dueAt)}</td>
                     <td className="px-4 py-3 text-right">{formatMoney(i.total)}</td>
-                    <td className="px-4 py-3 text-right font-semibold">{i.status === "VOID" ? "—" : formatMoney(i.outstanding)}</td>
-                    <td className="px-4 py-3"><Badge tone={statusTone[i.status]}>{i.status.charAt(0) + i.status.slice(1).toLowerCase()}</Badge></td>
+                    <td className="px-4 py-3 text-right font-semibold">
+                      {i.status === "VOID" ? "—" : formatMoney(i.outstanding)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge tone={statusTone[i.status]}>
+                        {i.status.charAt(0) + i.status.slice(1).toLowerCase()}
+                      </Badge>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -130,10 +190,20 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
                 {l.statement.map((s, idx) => (
                   <tr key={idx} className={s.voided ? "text-muted line-through" : ""}>
                     <td className="px-4 py-2">{formatDate(s.date)}</td>
-                    <td className="px-4 py-2">{s.ref ? `${s.ref} · ` : ""}{s.description}{s.voided ? " (void)" : ""}</td>
-                    <td className="px-4 py-2 text-right">{s.debitCents ? formatMoney(fromCents(s.debitCents)) : ""}</td>
-                    <td className="px-4 py-2 text-right">{s.creditCents ? formatMoney(fromCents(s.creditCents)) : ""}</td>
-                    <td className="px-4 py-2 text-right font-medium">{formatMoney(fromCents(s.balanceCents))}</td>
+                    <td className="px-4 py-2">
+                      {s.ref ? `${s.ref} · ` : ""}
+                      {s.description}
+                      {s.voided ? " (void)" : ""}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      {s.debitCents ? formatMoney(fromCents(s.debitCents)) : ""}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      {s.creditCents ? formatMoney(fromCents(s.creditCents)) : ""}
+                    </td>
+                    <td className="px-4 py-2 text-right font-medium">
+                      {formatMoney(fromCents(s.balanceCents))}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -144,18 +214,31 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
         )}
         {canVoid && l.payments.some((p) => !p.voided) ? (
           <details className="mt-3 text-sm">
-            <summary className="cursor-pointer text-muted">Void a payment entered by mistake</summary>
+            <summary className="cursor-pointer text-muted">
+              Void a payment entered by mistake
+            </summary>
             <ul className="mt-2 space-y-2">
-              {l.payments.filter((p) => !p.voided).map((p) => (
-                <li key={p.id} className="flex items-center justify-between gap-3 rounded-lg border border-line px-3 py-2">
-                  <span>{formatDate(p.receivedAt)} · {formatMoney(p.amount)} · {p.method.replace("_", " ").toLowerCase()}{p.reference ? ` · ${p.reference}` : ""}</span>
-                  <form action={voidPaymentAction}>
-                    <input type="hidden" name="paymentId" value={p.id} />
-                    <input type="hidden" name="customerId" value={c.id} />
-                    <Button type="submit" variant="outline" size="sm">Void</Button>
-                  </form>
-                </li>
-              ))}
+              {l.payments
+                .filter((p) => !p.voided)
+                .map((p) => (
+                  <li
+                    key={p.id}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-line px-3 py-2"
+                  >
+                    <span>
+                      {formatDate(p.receivedAt)} · {formatMoney(p.amount)} ·{" "}
+                      {p.method.replace("_", " ").toLowerCase()}
+                      {p.reference ? ` · ${p.reference}` : ""}
+                    </span>
+                    <form action={voidPaymentAction}>
+                      <input type="hidden" name="paymentId" value={p.id} />
+                      <input type="hidden" name="customerId" value={c.id} />
+                      <Button type="submit" variant="outline" size="sm">
+                        Void
+                      </Button>
+                    </form>
+                  </li>
+                ))}
             </ul>
           </details>
         ) : null}

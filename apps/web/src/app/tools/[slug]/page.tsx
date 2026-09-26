@@ -11,7 +11,11 @@ export function generateStaticParams() {
   return CALCULATORS.map((c) => ({ slug: c.slug }));
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
   const c = getCalculator((await params).slug);
   if (!c) return {};
   return {
@@ -75,7 +79,10 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
         <ul className="mt-3 flex flex-wrap gap-2 text-sm">
           {CALCULATORS.filter((x) => x.slug !== c.slug).map((x) => (
             <li key={x.slug}>
-              <Link href={`/tools/${x.slug}`} className="rounded-full border border-line px-3 py-1 hover:bg-surface">
+              <Link
+                href={`/tools/${x.slug}`}
+                className="rounded-full border border-line px-3 py-1 hover:bg-surface"
+              >
                 {x.name}
               </Link>
             </li>

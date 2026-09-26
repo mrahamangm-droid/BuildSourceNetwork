@@ -22,7 +22,11 @@ function guard(ctx: Ctx) {
 function parse<T extends z.ZodType>(schema: T, raw: unknown): z.infer<T> {
   const r = schema.safeParse(raw);
   if (!r.success)
-    throw new AppError("Please fix the highlighted fields.", "VALIDATION", fieldErrorsFrom(r.error));
+    throw new AppError(
+      "Please fix the highlighted fields.",
+      "VALIDATION",
+      fieldErrorsFrom(r.error),
+    );
   return r.data;
 }
 
@@ -55,7 +59,11 @@ export const itemSchema = z.object({
   unitRate: optMoney,
 });
 
-export const itemUpdateSchema = itemSchema.pick({ quantity: true, wastePercent: true, unitRate: true });
+export const itemUpdateSchema = itemSchema.pick({
+  quantity: true,
+  wastePercent: true,
+  unitRate: true,
+});
 
 const num = (d: { toString(): string } | null) => (d === null ? null : Number(d.toString()));
 
@@ -100,7 +108,13 @@ export async function createProject(ctx: Ctx, raw: unknown) {
       notes: d.notes || null,
     },
   });
-  await audit({ orgId: ctx.orgId, actorId: ctx.userId, action: "project.created", entity: "Project", entityId: p.id });
+  await audit({
+    orgId: ctx.orgId,
+    actorId: ctx.userId,
+    action: "project.created",
+    entity: "Project",
+    entityId: p.id,
+  });
   return p;
 }
 
@@ -120,7 +134,13 @@ export async function updateProject(ctx: Ctx, id: string, raw: unknown) {
       notes: d.notes || null,
     },
   });
-  await audit({ orgId: ctx.orgId, actorId: ctx.userId, action: "project.updated", entity: "Project", entityId: id });
+  await audit({
+    orgId: ctx.orgId,
+    actorId: ctx.userId,
+    action: "project.updated",
+    entity: "Project",
+    entityId: id,
+  });
   return p;
 }
 
@@ -183,7 +203,14 @@ export async function getProject(ctx: Ctx, id: string) {
 async function appendItems(
   ctx: Ctx,
   projectId: string,
-  rows: { section: string; description: string; unit: string; quantity: number; wastePercent: number; unitRate: number | null }[],
+  rows: {
+    section: string;
+    description: string;
+    unit: string;
+    quantity: number;
+    wastePercent: number;
+    unitRate: number | null;
+  }[],
 ) {
   return db.$transaction(
     async (tx) => {
@@ -193,7 +220,10 @@ async function appendItems(
         _max: { sortOrder: true },
       });
       if (last._count + rows.length > MAX_ITEMS_PER_PROJECT)
-        throw new AppError(`A project can hold at most ${MAX_ITEMS_PER_PROJECT} BOQ lines.`, "VALIDATION");
+        throw new AppError(
+          `A project can hold at most ${MAX_ITEMS_PER_PROJECT} BOQ lines.`,
+          "VALIDATION",
+        );
       let order = (last._max.sortOrder ?? -1) + 1;
       await tx.boqItem.createMany({
         data: rows.map((r) => ({
@@ -218,7 +248,13 @@ export async function addItem(ctx: Ctx, projectId: string, raw: unknown) {
   await own(ctx, projectId);
   const d = parse(itemSchema, raw);
   await appendItems(ctx, projectId, [d]);
-  await audit({ orgId: ctx.orgId, actorId: ctx.userId, action: "boq.item_added", entity: "Project", entityId: projectId });
+  await audit({
+    orgId: ctx.orgId,
+    actorId: ctx.userId,
+    action: "boq.item_added",
+    entity: "Project",
+    entityId: projectId,
+  });
 }
 
 export async function updateItem(ctx: Ctx, itemId: string, raw: unknown) {
@@ -239,12 +275,25 @@ export async function deleteItem(ctx: Ctx, itemId: string) {
   guard(ctx);
   const res = await db.boqItem.deleteMany({ where: { id: itemId, orgId: ctx.orgId } });
   if (res.count !== 1) throw new AppError("Line not found", "NOT_FOUND");
-  await audit({ orgId: ctx.orgId, actorId: ctx.userId, action: "boq.item_deleted", entity: "BoqItem", entityId: itemId });
+  await audit({
+    orgId: ctx.orgId,
+    actorId: ctx.userId,
+    action: "boq.item_deleted",
+    entity: "BoqItem",
+    entityId: itemId,
+  });
 }
 
 const starterSchema = z.object({
-  areaM2: z.coerce.number({ message: "Enter the gross floor area" }).gt(0, "Must be above 0").max(1_000_000),
-  floors: z.coerce.number({ message: "Enter the number of floors" }).int("Whole floors only").min(1).max(100),
+  areaM2: z.coerce
+    .number({ message: "Enter the gross floor area" })
+    .gt(0, "Must be above 0")
+    .max(1_000_000),
+  floors: z.coerce
+    .number({ message: "Enter the number of floors" })
+    .int("Whole floors only")
+    .min(1)
+    .max(100),
 });
 
 /** Adds rule-based starter lines (no rates) using the project's kind. */
@@ -259,7 +308,11 @@ export async function generateStarter(ctx: Ctx, projectId: string, raw: unknown)
       "VALIDATION",
       { areaM2: "Starter bills are available for building projects only." },
     );
-  await appendItems(ctx, projectId, lines.map((l) => ({ ...l, unitRate: null })));
+  await appendItems(
+    ctx,
+    projectId,
+    lines.map((l) => ({ ...l, unitRate: null })),
+  );
   await audit({
     orgId: ctx.orgId,
     actorId: ctx.userId,

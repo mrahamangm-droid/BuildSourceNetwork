@@ -25,15 +25,18 @@ export function PriceBreaksForm({
   return (
     <Card>
       <p className="text-sm text-muted">
-        Base price {basePrice} {currency} per {unit}, minimum order {minOrderQty}. Each break applies from its
-        quantity upward and must be cheaper than the tier before it. Leave a row empty to skip it; save with all
-        rows empty to remove volume pricing.
+        Base price {basePrice} {currency} per {unit}, minimum order {minOrderQty}. Each break
+        applies from its quantity upward and must be cheaper than the tier before it. Leave a row
+        empty to skip it; save with all rows empty to remove volume pricing.
       </p>
       <form action={action} className="mt-4 space-y-3">
         <input type="hidden" name="productId" value={productId} />
         {Array.from({ length: SLOTS }, (_, i) => (
           <div key={i} className="grid gap-3 sm:grid-cols-2">
-            <Field label={`Break ${i + 1}: from quantity (${unit})`} error={fe(state, `minQty_${i}`)}>
+            <Field
+              label={`Break ${i + 1}: from quantity (${unit})`}
+              error={fe(state, `minQty_${i}`)}
+            >
               <Input
                 name={`minQty_${i}`}
                 type="number"

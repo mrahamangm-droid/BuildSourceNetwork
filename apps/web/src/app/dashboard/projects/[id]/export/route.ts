@@ -8,7 +8,11 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   try {
     const ctx = await requireCtx();
     const { name, csv } = await exportCsv(ctx, (await params).id);
-    const safe = name.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").slice(0, 60) || "project";
+    const safe =
+      name
+        .replace(/[^a-z0-9]+/gi, "-")
+        .replace(/^-|-$/g, "")
+        .slice(0, 60) || "project";
     return new Response(csv, {
       headers: {
         "content-type": "text/csv; charset=utf-8",
@@ -17,7 +21,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       },
     });
   } catch (e) {
-    if (e instanceof AppError) return new Response(e.message, { status: e.code === "NOT_FOUND" ? 404 : 403 });
+    if (e instanceof AppError)
+      return new Response(e.message, { status: e.code === "NOT_FOUND" ? 404 : 403 });
     throw e;
   }
 }

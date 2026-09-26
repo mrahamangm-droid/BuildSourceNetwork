@@ -27,7 +27,10 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
     <div className="max-w-3xl">
       <PageHeader title="Edit product" description={p.name} />
       <p className="mb-4 text-sm">
-        <Link className="text-brand-700 hover:underline" href={`/dashboard/products/${p.id}/pricing`}>
+        <Link
+          className="text-brand-700 hover:underline"
+          href={`/dashboard/products/${p.id}/pricing`}
+        >
           Volume pricing (quantity breaks) →
         </Link>
       </p>

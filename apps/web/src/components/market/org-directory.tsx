@@ -21,7 +21,8 @@ export async function OrgDirectory({
   forceKind?: SupplierKind;
   listPath?: string;
 }) {
-  const kind = forceKind ?? (type === "SUPPLIER" ? (parseKind(sp.kind ?? "") ?? undefined) : undefined);
+  const kind =
+    forceKind ?? (type === "SUPPLIER" ? (parseKind(sp.kind ?? "") ?? undefined) : undefined);
   const [res, cats, cityRows] = await Promise.all([
     listPublicOrgs({
       type,

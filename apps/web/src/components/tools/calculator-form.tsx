@@ -16,7 +16,10 @@ export function CalculatorForm({ slug }: { slug: string }) {
         <h2 className="font-semibold">Your measurements</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           {calc.inputs.map((i) => (
-            <Field key={i.key} label={i.type === "number" && i.unit ? `${i.label} (${i.unit})` : i.label}>
+            <Field
+              key={i.key}
+              label={i.type === "number" && i.unit ? `${i.label} (${i.unit})` : i.label}
+            >
               {i.type === "select" ? (
                 <Select
                   value={String(values[i.key])}
@@ -61,7 +64,11 @@ export function CalculatorForm({ slug }: { slug: string }) {
         ))}
         <div className="mt-5 flex flex-wrap gap-2">
           <LinkButton
-            href={calc.categoryHint ? `/dashboard/rfqs/new?category=${calc.categoryHint}` : "/dashboard/rfqs/new"}
+            href={
+              calc.categoryHint
+                ? `/dashboard/rfqs/new?category=${calc.categoryHint}`
+                : "/dashboard/rfqs/new"
+            }
           >
             Get quotes for these materials
           </LinkButton>

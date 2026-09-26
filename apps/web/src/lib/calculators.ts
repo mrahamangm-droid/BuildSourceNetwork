@@ -7,10 +7,30 @@
  */
 
 export type InputDef =
-  | { key: string; label: string; unit?: string; type: "number"; default: number; min?: number; step?: number }
-  | { key: string; label: string; type: "select"; default: string; options: { value: string; label: string }[] };
+  | {
+      key: string;
+      label: string;
+      unit?: string;
+      type: "number";
+      default: number;
+      min?: number;
+      step?: number;
+    }
+  | {
+      key: string;
+      label: string;
+      type: "select";
+      default: string;
+      options: { value: string; label: string }[];
+    };
 
-export type ResultRow = { label: string; value: number; unit: string; primary?: boolean; decimals?: number };
+export type ResultRow = {
+  label: string;
+  value: number;
+  unit: string;
+  primary?: boolean;
+  decimals?: number;
+};
 export type CalcOutput = { rows: ResultRow[]; notes?: string[] };
 export type Values = Record<string, number | string>;
 
@@ -95,7 +115,15 @@ const concrete: Calculator = {
   inputs: [
     { key: "length", label: "Length", unit: "m", type: "number", default: 5, min: 0, step: 0.1 },
     { key: "width", label: "Width", unit: "m", type: "number", default: 4, min: 0, step: 0.1 },
-    { key: "depth", label: "Thickness / depth", unit: "m", type: "number", default: 0.15, min: 0, step: 0.01 },
+    {
+      key: "depth",
+      label: "Thickness / depth",
+      unit: "m",
+      type: "number",
+      default: 0.15,
+      min: 0,
+      step: 0.01,
+    },
     { key: "mix", label: "Concrete mix", type: "select", default: "M20", options: mixOptions },
     { ...wasteInput, default: 5 },
   ],
@@ -135,8 +163,24 @@ const cement: Calculator = {
     "Estimate cement bags and sand for plastering, screeding or mortar by area, thickness and mortar ratio.",
   categoryHint: "cement",
   inputs: [
-    { key: "area", label: "Area to cover", unit: "m²", type: "number", default: 50, min: 0, step: 1 },
-    { key: "thickness", label: "Thickness", unit: "mm", type: "number", default: 12, min: 0, step: 1 },
+    {
+      key: "area",
+      label: "Area to cover",
+      unit: "m²",
+      type: "number",
+      default: 50,
+      min: 0,
+      step: 1,
+    },
+    {
+      key: "thickness",
+      label: "Thickness",
+      unit: "mm",
+      type: "number",
+      default: 12,
+      min: 0,
+      step: 1,
+    },
     {
       key: "ratio",
       label: "Mortar ratio (cement : sand)",
@@ -158,12 +202,20 @@ const cement: Calculator = {
     const cementM3 = dry / (1 + s);
     return {
       rows: [
-        { label: "Cement", value: Math.ceil(cementM3 / BAG_M3), unit: "bags (50 kg)", primary: true, decimals: 0 },
+        {
+          label: "Cement",
+          value: Math.ceil(cementM3 / BAG_M3),
+          unit: "bags (50 kg)",
+          primary: true,
+          decimals: 0,
+        },
         { label: "Cement weight", value: cementM3 * CEMENT_DENSITY, unit: "kg", decimals: 0 },
         { label: "Sand", value: (dry * s) / (1 + s), unit: "m³" },
         { label: "Wet mortar volume", value: wet, unit: "m³" },
       ],
-      notes: [`Uses a dry-volume factor of ${DRY_MORTAR_FACTOR}. Rough or porous surfaces use more.`],
+      notes: [
+        `Uses a dry-volume factor of ${DRY_MORTAR_FACTOR}. Rough or porous surfaces use more.`,
+      ],
     };
   },
   faqs: [
@@ -189,9 +241,33 @@ const block: Calculator = {
     "Count the concrete blocks or bricks needed for a wall, deducting doors and windows and allowing for the mortar joint.",
   categoryHint: "blocks",
   inputs: [
-    { key: "length", label: "Wall length", unit: "m", type: "number", default: 12, min: 0, step: 0.1 },
-    { key: "height", label: "Wall height", unit: "m", type: "number", default: 3, min: 0, step: 0.1 },
-    { key: "openings", label: "Openings (doors + windows)", unit: "m²", type: "number", default: 4, min: 0, step: 0.1 },
+    {
+      key: "length",
+      label: "Wall length",
+      unit: "m",
+      type: "number",
+      default: 12,
+      min: 0,
+      step: 0.1,
+    },
+    {
+      key: "height",
+      label: "Wall height",
+      unit: "m",
+      type: "number",
+      default: 3,
+      min: 0,
+      step: 0.1,
+    },
+    {
+      key: "openings",
+      label: "Openings (doors + windows)",
+      unit: "m²",
+      type: "number",
+      default: 4,
+      min: 0,
+      step: 0.1,
+    },
     {
       key: "size",
       label: "Unit face size",
@@ -199,7 +275,15 @@ const block: Calculator = {
       default: "400x200",
       options: Object.entries(BLOCKS).map(([value, b]) => ({ value, label: b.label })),
     },
-    { key: "joint", label: "Mortar joint", unit: "mm", type: "number", default: 10, min: 0, step: 1 },
+    {
+      key: "joint",
+      label: "Mortar joint",
+      unit: "mm",
+      type: "number",
+      default: 10,
+      min: 0,
+      step: 1,
+    },
     { ...wasteInput, default: 5 },
   ],
   compute: (v) => {
@@ -211,7 +295,13 @@ const block: Calculator = {
     const count = net / face;
     return {
       rows: [
-        { label: "Units needed (with wastage)", value: Math.ceil(count * (1 + pct(v, "waste"))), unit: "pcs", primary: true, decimals: 0 },
+        {
+          label: "Units needed (with wastage)",
+          value: Math.ceil(count * (1 + pct(v, "waste"))),
+          unit: "pcs",
+          primary: true,
+          decimals: 0,
+        },
         { label: "Units before wastage", value: Math.ceil(count), unit: "pcs", decimals: 0 },
         { label: "Net wall area", value: net, unit: "m²" },
       ],
@@ -234,12 +324,44 @@ const tile: Calculator = {
     "Calculate how many tiles and boxes you need for a floor or wall, including grout joints and cutting wastage.",
   categoryHint: "tiles",
   inputs: [
-    { key: "length", label: "Room length", unit: "m", type: "number", default: 5, min: 0, step: 0.1 },
+    {
+      key: "length",
+      label: "Room length",
+      unit: "m",
+      type: "number",
+      default: 5,
+      min: 0,
+      step: 0.1,
+    },
     { key: "width", label: "Room width", unit: "m", type: "number", default: 4, min: 0, step: 0.1 },
-    { key: "tileL", label: "Tile length", unit: "mm", type: "number", default: 600, min: 0, step: 10 },
-    { key: "tileW", label: "Tile width", unit: "mm", type: "number", default: 600, min: 0, step: 10 },
+    {
+      key: "tileL",
+      label: "Tile length",
+      unit: "mm",
+      type: "number",
+      default: 600,
+      min: 0,
+      step: 10,
+    },
+    {
+      key: "tileW",
+      label: "Tile width",
+      unit: "mm",
+      type: "number",
+      default: 600,
+      min: 0,
+      step: 10,
+    },
     { key: "gap", label: "Grout joint", unit: "mm", type: "number", default: 3, min: 0, step: 0.5 },
-    { key: "perBox", label: "Tiles per box", unit: "pcs", type: "number", default: 4, min: 1, step: 1 },
+    {
+      key: "perBox",
+      label: "Tiles per box",
+      unit: "pcs",
+      type: "number",
+      default: 4,
+      min: 1,
+      step: 1,
+    },
     { ...wasteInput, default: 10 },
   ],
   compute: (v) => {
@@ -273,11 +395,43 @@ const paint: Calculator = {
     "Estimate how many litres of paint you need for interior or exterior walls, minus doors and windows, for any number of coats.",
   categoryHint: "paint",
   inputs: [
-    { key: "perimeter", label: "Total wall length (perimeter)", unit: "m", type: "number", default: 18, min: 0, step: 0.1 },
-    { key: "height", label: "Wall height", unit: "m", type: "number", default: 3, min: 0, step: 0.1 },
-    { key: "openings", label: "Doors and windows", unit: "m²", type: "number", default: 6, min: 0, step: 0.1 },
+    {
+      key: "perimeter",
+      label: "Total wall length (perimeter)",
+      unit: "m",
+      type: "number",
+      default: 18,
+      min: 0,
+      step: 0.1,
+    },
+    {
+      key: "height",
+      label: "Wall height",
+      unit: "m",
+      type: "number",
+      default: 3,
+      min: 0,
+      step: 0.1,
+    },
+    {
+      key: "openings",
+      label: "Doors and windows",
+      unit: "m²",
+      type: "number",
+      default: 6,
+      min: 0,
+      step: 0.1,
+    },
     { key: "coats", label: "Number of coats", type: "number", default: 2, min: 1, step: 1 },
-    { key: "coverage", label: "Coverage per litre (one coat)", unit: "m²/L", type: "number", default: 10, min: 1, step: 0.5 },
+    {
+      key: "coverage",
+      label: "Coverage per litre (one coat)",
+      unit: "m²/L",
+      type: "number",
+      default: 10,
+      min: 1,
+      step: 0.5,
+    },
     { ...wasteInput, default: 5 },
   ],
   compute: (v) => {
@@ -287,7 +441,12 @@ const paint: Calculator = {
     const litres = ((net * coats) / cov) * (1 + pct(v, "waste"));
     return {
       rows: [
-        { label: "Paint needed", value: Math.ceil(litres * 10) / 10, unit: "litres", primary: true },
+        {
+          label: "Paint needed",
+          value: Math.ceil(litres * 10) / 10,
+          unit: "litres",
+          primary: true,
+        },
         { label: "In 18 L drums", value: Math.ceil(litres / 18), unit: "drums", decimals: 0 },
         { label: "Paintable area", value: net, unit: "m²" },
       ],
@@ -318,7 +477,15 @@ const steel: Calculator = {
       default: "12",
       options: STEEL_SIZES.map((d) => ({ value: String(d), label: `${d} mm` })),
     },
-    { key: "length", label: "Length of each bar", unit: "m", type: "number", default: 6, min: 0, step: 0.1 },
+    {
+      key: "length",
+      label: "Length of each bar",
+      unit: "m",
+      type: "number",
+      default: 6,
+      min: 0,
+      step: 0.1,
+    },
     { key: "count", label: "Number of bars", type: "number", default: 100, min: 0, step: 1 },
     { ...wasteInput, label: "Lap / cutting allowance", default: 7 },
   ],
@@ -349,7 +516,8 @@ const area: Calculator = {
   slug: "area-calculator",
   name: "Area Calculator",
   short: "Area of rectangles, circles and triangles in square metres and square feet.",
-  description: "Quickly find the area of a rectangle, circle or triangle and convert it between m² and ft².",
+  description:
+    "Quickly find the area of a rectangle, circle or triangle and convert it between m² and ft².",
   inputs: [
     {
       key: "shape",
@@ -362,8 +530,24 @@ const area: Calculator = {
         { value: "tri", label: "Triangle (base × height / 2)" },
       ],
     },
-    { key: "a", label: "Length / diameter / base", unit: "m", type: "number", default: 10, min: 0, step: 0.1 },
-    { key: "b", label: "Width / height (unused for circle)", unit: "m", type: "number", default: 6, min: 0, step: 0.1 },
+    {
+      key: "a",
+      label: "Length / diameter / base",
+      unit: "m",
+      type: "number",
+      default: 10,
+      min: 0,
+      step: 0.1,
+    },
+    {
+      key: "b",
+      label: "Width / height (unused for circle)",
+      unit: "m",
+      type: "number",
+      default: 6,
+      min: 0,
+      step: 0.1,
+    },
   ],
   compute: (v) => {
     const a = num(v, "a");
@@ -377,9 +561,7 @@ const area: Calculator = {
       ],
     };
   },
-  faqs: [
-    { q: "How do I convert square metres to square feet?", a: "Multiply by 10.7639." },
-  ],
+  faqs: [{ q: "How do I convert square metres to square feet?", a: "Multiply by 10.7639." }],
 };
 
 const quantity: Calculator = {
@@ -390,8 +572,24 @@ const quantity: Calculator = {
     "For any material with a known coverage or consumption rate: adhesive, waterproofing, screed, insulation. Enter area, rate and pack size to get the order quantity.",
   inputs: [
     { key: "area", label: "Area", unit: "m²", type: "number", default: 100, min: 0, step: 1 },
-    { key: "rate", label: "Consumption per m²", unit: "units/m²", type: "number", default: 4, min: 0, step: 0.1 },
-    { key: "pack", label: "Pack size", unit: "units/pack", type: "number", default: 25, min: 0, step: 1 },
+    {
+      key: "rate",
+      label: "Consumption per m²",
+      unit: "units/m²",
+      type: "number",
+      default: 4,
+      min: 0,
+      step: 0.1,
+    },
+    {
+      key: "pack",
+      label: "Pack size",
+      unit: "units/pack",
+      type: "number",
+      default: 25,
+      min: 0,
+      step: 1,
+    },
     { ...wasteInput, default: 8 },
   ],
   compute: (v) => {
@@ -401,7 +599,12 @@ const quantity: Calculator = {
       rows: [
         { label: "Total needed", value: total, unit: "units", primary: true },
         { label: "Packs to order", value: Math.ceil(total / pack), unit: "packs", decimals: 0 },
-        { label: "Order quantity", value: Math.ceil(total / pack) * pack, unit: "units", decimals: 0 },
+        {
+          label: "Order quantity",
+          value: Math.ceil(total / pack) * pack,
+          unit: "units",
+          decimals: 0,
+        },
       ],
     };
   },
@@ -429,7 +632,15 @@ const estimator: Calculator = {
   description:
     "A quick budgeting estimate of the main materials for a framed building from its total built-up area and number of floors. Not a substitute for a bill of quantities.",
   inputs: [
-    { key: "area", label: "Built-up area per floor", unit: "m²", type: "number", default: 200, min: 0, step: 1 },
+    {
+      key: "area",
+      label: "Built-up area per floor",
+      unit: "m²",
+      type: "number",
+      default: 200,
+      min: 0,
+      step: 1,
+    },
     { key: "floors", label: "Number of floors", type: "number", default: 2, min: 1, step: 1 },
     { ...wasteInput, default: 5 },
   ],
@@ -440,11 +651,27 @@ const estimator: Calculator = {
     return {
       rows: [
         { label: "Total built-up area", value: total, unit: "m²" },
-        { label: "Cement", value: Math.ceil(total * r.cementBags * f), unit: "bags (50 kg)", primary: true, decimals: 0 },
-        { label: "Reinforcement steel", value: (total * r.steelKg * f) / 1000, unit: "tonnes", decimals: 2 },
+        {
+          label: "Cement",
+          value: Math.ceil(total * r.cementBags * f),
+          unit: "bags (50 kg)",
+          primary: true,
+          decimals: 0,
+        },
+        {
+          label: "Reinforcement steel",
+          value: (total * r.steelKg * f) / 1000,
+          unit: "tonnes",
+          decimals: 2,
+        },
         { label: "Sand", value: total * r.sandM3 * f, unit: "m³", decimals: 1 },
         { label: "Coarse aggregate", value: total * r.aggregateM3 * f, unit: "m³", decimals: 1 },
-        { label: "Blocks (400 × 200)", value: Math.ceil(total * r.blocksPcs * f), unit: "pcs", decimals: 0 },
+        {
+          label: "Blocks (400 × 200)",
+          value: Math.ceil(total * r.blocksPcs * f),
+          unit: "pcs",
+          decimals: 0,
+        },
       ],
       notes: [
         "Rule-of-thumb rates for a typical framed building. Actual use varies 15 to 30 percent with structure, spans and finishes.",
@@ -460,7 +687,17 @@ const estimator: Calculator = {
   ],
 };
 
-export const CALCULATORS: Calculator[] = [concrete, cement, block, tile, paint, steel, area, quantity, estimator];
+export const CALCULATORS: Calculator[] = [
+  concrete,
+  cement,
+  block,
+  tile,
+  paint,
+  steel,
+  area,
+  quantity,
+  estimator,
+];
 
 export function getCalculator(slug: string) {
   return CALCULATORS.find((c) => c.slug === slug);
@@ -472,5 +709,8 @@ export function defaultValues(c: Calculator): Values {
 
 export function formatResult(r: ResultRow) {
   const d = r.decimals ?? (Math.abs(r.value) >= 100 ? 1 : 2);
-  return round(r.value, d).toLocaleString("en", { minimumFractionDigits: 0, maximumFractionDigits: d });
+  return round(r.value, d).toLocaleString("en", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: d,
+  });
 }

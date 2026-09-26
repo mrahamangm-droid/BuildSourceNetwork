@@ -21,6 +21,8 @@ import * as pricing from "./services/pricing";
 import * as projects from "./services/projects";
 import * as orderStock from "./services/order-stock";
 import * as plans from "./services/plans";
+import * as branches from "./services/branches";
+import * as blog from "./services/blog";
 import * as rfqAttachments from "./services/rfq-attachments";
 import type { DeliveryStatusValue } from "@/lib/delivery-rules";
 import { ORDER_STATUSES, type OrderStatus } from "@bmn/config";
@@ -312,7 +314,9 @@ export async function removeRfqAttachmentAction(fd: FormData) {
     const ctx = await requireCtx();
     await rfqAttachments.removeAttachment(ctx, str(fd, "id"));
   } catch (e) {
-    redirect(`/dashboard/rfqs/${rfqId}?error=${encodeURIComponent(fail(e).error ?? "Could not remove file")}`);
+    redirect(
+      `/dashboard/rfqs/${rfqId}?error=${encodeURIComponent(fail(e).error ?? "Could not remove file")}`,
+    );
   }
   revalidatePath(`/dashboard/rfqs/${rfqId}`);
 }
@@ -460,7 +464,8 @@ const MOVES = ["RECEIPT", "ISSUE", "ADJUSTMENT", "RESERVE", "RELEASE"] as const;
 
 export async function stockMovementAction(_: ActionState, fd: FormData): Promise<ActionState> {
   const kind = str(fd, "kind");
-  if (!(MOVES as readonly string[]).includes(kind)) return { error: "Choose what happened to the stock." };
+  if (!(MOVES as readonly string[]).includes(kind))
+    return { error: "Choose what happened to the stock." };
   try {
     const ctx = await requireCtx();
     const r = await inventory.move(ctx, kind as (typeof MOVES)[number], {
@@ -478,10 +483,137 @@ export async function stockMovementAction(_: ActionState, fd: FormData): Promise
   }
 }
 
+// ───────── blog (platform admin) ─────────
+
+export async function savePostAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const id = str(fd, "id") || null;
+  let createdId: string | null = null;
+  try {
+    const a = await requireAdmin();
+    const post = await blog.savePost({ userId: a.id, isPlatformAdmin: true }, id, {
+      title: str(fd, "title"),
+      slug: str(fd, "slug"),
+      excerpt: str(fd, "excerpt"),
+      body: fd.get("body")?.toString() ?? "",
+      tags: str(fd, "tags"),
+    });
+    if (!id) createdId = post.id;
+    revalidatePath("/admin/blog");
+    revalidatePath("/blog");
+    revalidatePath(`/blog/${post.slug}`);
+  } catch (e) {
+    return fail(e);
+  }
+  if (createdId) redirect(`/admin/blog/${createdId}?saved=1`);
+  return { ok: true, message: "Saved." };
+}
+
+export async function setPostPublishedAction(fd: FormData) {
+  const id = str(fd, "id");
+  const a = await requireAdmin();
+  await blog.setPublished({ userId: a.id, isPlatformAdmin: true }, id, str(fd, "publish") === "1");
+  revalidatePath("/admin/blog");
+  revalidatePath(`/admin/blog/${id}`);
+  revalidatePath("/blog");
+}
+
+export async function importStarterPostsAction() {
+  const a = await requireAdmin();
+  await blog.importStarters({ userId: a.id, isPlatformAdmin: true });
+  revalidatePath("/admin/blog");
+}
+
+// ───────── branches & warehouses ─────────
+
+export async function createBranchAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requireCtx();
+    await branches.createBranch(ctx, {
+      name: str(fd, "name"),
+      city: str(fd, "city"),
+      address: str(fd, "address"),
+    });
+    revalidatePath("/dashboard/branches");
+    return { ok: true, message: "Branch added." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function updateBranchAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requireCtx();
+    await branches.updateBranch(ctx, str(fd, "id"), {
+      name: str(fd, "name"),
+      city: str(fd, "city"),
+      address: str(fd, "address"),
+    });
+    revalidatePath("/dashboard/branches");
+    return { ok: true, message: "Branch saved." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function addWarehouseAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requireCtx();
+    await branches.addWarehouse(ctx, str(fd, "branchId"), { name: str(fd, "name") });
+    revalidatePath("/dashboard/branches");
+    return { ok: true, message: "Warehouse added." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+async function branchesRedirect(work: () => Promise<void>): Promise<never> {
+  let error: string | null = null;
+  try {
+    await work();
+  } catch (e) {
+    error = fail(e).error ?? "Something went wrong";
+  }
+  revalidatePath("/dashboard/branches");
+  redirect(
+    error ? `/dashboard/branches?error=${encodeURIComponent(error)}` : "/dashboard/branches",
+  );
+}
+
+export async function deleteBranchAction(fd: FormData) {
+  return branchesRedirect(async () => branches.deleteBranch(await requireCtx(), str(fd, "id")));
+}
+
+export async function deleteWarehouseAction(fd: FormData) {
+  return branchesRedirect(async () => branches.deleteWarehouse(await requireCtx(), str(fd, "id")));
+}
+
+export async function transferStockAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requireCtx();
+    await branches.transferStock(ctx, {
+      productId: str(fd, "productId"),
+      fromWarehouseId: str(fd, "fromWarehouseId"),
+      toWarehouseId: str(fd, "toWarehouseId"),
+      quantity: str(fd, "quantity"),
+      note: str(fd, "note"),
+    });
+    revalidatePath("/dashboard/branches");
+    revalidatePath("/dashboard/inventory");
+    return { ok: true, message: "Stock transferred." };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
 export async function reorderLevelAction(_: ActionState, fd: FormData): Promise<ActionState> {
   try {
     const ctx = await requireCtx();
-    await inventory.setReorderLevel(ctx, str(fd, "productId"), undefined, Number(str(fd, "reorderLevel")));
+    await inventory.setReorderLevel(
+      ctx,
+      str(fd, "productId"),
+      undefined,
+      Number(str(fd, "reorderLevel")),
+    );
     revalidatePath("/dashboard/inventory");
     return { ok: true, message: "Reorder level saved." };
   } catch (e) {
@@ -632,7 +764,10 @@ export async function savePriceBreaksAction(_: ActionState, fd: FormData): Promi
     const n = await pricing.saveBreaks(ctx, productId, rows);
     revalidatePath(`/dashboard/products/${productId}/pricing`);
     revalidatePath(`/products/${productId}`);
-    return { ok: true, message: n ? `${n} price break${n === 1 ? "" : "s"} saved.` : "Price breaks cleared." };
+    return {
+      ok: true,
+      message: n ? `${n} price break${n === 1 ? "" : "s"} saved.` : "Price breaks cleared.",
+    };
   } catch (e) {
     return fail(e);
   }
@@ -736,7 +871,7 @@ export async function orderStockAction(_: ActionState, fd: FormData): Promise<Ac
       const mapping: Record<string, string> = {};
       for (const [k, v] of fd.entries())
         if (k.startsWith("product_") && typeof v === "string" && v) mapping[k.slice(8)] = v;
-      n = await orderStock.reserveOrderStock(ctx, orderId, mapping);
+      n = await orderStock.reserveOrderStock(ctx, orderId, mapping, str(fd, "warehouseId"));
     } else if (intent === "issue") n = await orderStock.issueOrderStock(ctx, orderId);
     else if (intent === "release") n = await orderStock.releaseOrderStock(ctx, orderId);
     else return { error: "Unknown stock action." };
@@ -754,7 +889,10 @@ export async function requestPlanAction(_: ActionState, fd: FormData): Promise<A
     const ctx = await requireCtx();
     await plans.requestPlan(ctx, { planCode: str(fd, "planCode"), note: str(fd, "note") });
     revalidatePath("/dashboard/billing");
-    return { ok: true, message: "Request sent. We will confirm payment details and activate your plan." };
+    return {
+      ok: true,
+      message: "Request sent. We will confirm payment details and activate your plan.",
+    };
   } catch (e) {
     return fail(e);
   }

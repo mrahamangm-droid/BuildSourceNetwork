@@ -7,7 +7,11 @@ let db: typeof import("@bmn/database").db;
 let supplier: Acc;
 let staff: Acc;
 let adminActor: { userId: string; isPlatformAdmin: boolean };
-const input = { legalName: "Acme Trading LLC", licenseNumber: "TL-12345", licenseAuthority: "SEDD" };
+const input = {
+  legalName: "Acme Trading LLC",
+  licenseNumber: "TL-12345",
+  licenseAuthority: "SEDD",
+};
 
 beforeAll(async () => {
   await resetDb();
@@ -68,9 +72,9 @@ describe("company verification", () => {
       code: "VALIDATION",
     });
     await admin.reviewVerification(adminActor, req.id, "REJECT", "Licence photo unreadable");
-    await expect(
-      admin.reviewVerification(adminActor, req.id, "APPROVE", ""),
-    ).rejects.toMatchObject({ code: "CONFLICT" });
+    await expect(admin.reviewVerification(adminActor, req.id, "APPROVE", "")).rejects.toMatchObject(
+      { code: "CONFLICT" },
+    );
     expect(
       (await db.organization.findUniqueOrThrow({ where: { id: supplier.ctx.orgId } }))
         .verificationStatus,

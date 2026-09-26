@@ -17,7 +17,8 @@ export default function ToolsPage() {
       <Breadcrumbs items={[{ name: "Home", href: "/" }, { name: "Tools" }]} />
       <h1 className="text-3xl font-bold tracking-tight">Free construction calculators</h1>
       <p className="mt-2 max-w-2xl text-muted">
-        Estimate quantities in seconds, then turn the result into a quote request to verified suppliers.
+        Estimate quantities in seconds, then turn the result into a quote request to verified
+        suppliers.
       </p>
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {CALCULATORS.map((c) => (

@@ -38,19 +38,29 @@ const assertCanVoid = (ctx: Ctx) => assertOwnerOrAdmin(ctx, "void financial reco
 function parse<T extends z.ZodType>(schema: T, raw: unknown): z.infer<T> {
   const r = schema.safeParse(raw);
   if (!r.success)
-    throw new AppError("Please fix the highlighted fields.", "VALIDATION", fieldErrorsFrom(r.error));
+    throw new AppError(
+      "Please fix the highlighted fields.",
+      "VALIDATION",
+      fieldErrorsFrom(r.error),
+    );
   return r.data;
 }
 
 const optNum = (min: number, max: number) =>
-  z.preprocess((v) => (v === "" || v == null ? undefined : v), z.coerce.number().min(min).max(max).optional());
+  z.preprocess(
+    (v) => (v === "" || v == null ? undefined : v),
+    z.coerce.number().min(min).max(max).optional(),
+  );
 const opt = (max: number) => z.string().trim().max(max).optional().default("");
 
 export const customerSchema = z.object({
   name: z.string().trim().min(2, "Enter the customer name").max(120),
   contactName: opt(80),
   phone: opt(30),
-  email: z.preprocess((v) => (v === "" ? undefined : v), z.string().trim().email("Enter a valid email").max(120).optional()),
+  email: z.preprocess(
+    (v) => (v === "" ? undefined : v),
+    z.string().trim().email("Enter a valid email").max(120).optional(),
+  ),
   city: opt(80),
   address: opt(300),
   taxNumber: opt(40),
@@ -76,7 +86,9 @@ function customerData(d: z.infer<typeof customerSchema>) {
 
 const duplicate = (e: unknown) =>
   (e as { code?: string })?.code === "P2002"
-    ? new AppError("You already have a customer with that name.", "CONFLICT", { name: "Already exists" })
+    ? new AppError("You already have a customer with that name.", "CONFLICT", {
+        name: "Already exists",
+      })
     : e;
 
 export async function createCustomer(ctx: Ctx, raw: unknown) {
@@ -84,7 +96,13 @@ export async function createCustomer(ctx: Ctx, raw: unknown) {
   const d = parse(customerSchema, raw);
   try {
     const c = await db.customer.create({ data: { orgId: ctx.orgId, ...customerData(d) } });
-    await audit({ orgId: ctx.orgId, actorId: ctx.userId, action: "customer.create", entity: "Customer", entityId: c.id });
+    await audit({
+      orgId: ctx.orgId,
+      actorId: ctx.userId,
+      action: "customer.create",
+      entity: "Customer",
+      entityId: c.id,
+    });
     return c;
   } catch (e) {
     throw duplicate(e);
@@ -95,12 +113,21 @@ export async function updateCustomer(ctx: Ctx, id: string, raw: unknown) {
   guard(ctx);
   const d = parse(customerSchema, raw);
   try {
-    const res = await db.customer.updateMany({ where: { id, orgId: ctx.orgId }, data: customerData(d) });
+    const res = await db.customer.updateMany({
+      where: { id, orgId: ctx.orgId },
+      data: customerData(d),
+    });
     if (res.count !== 1) throw new AppError("Customer not found", "NOT_FOUND");
   } catch (e) {
     throw duplicate(e);
   }
-  await audit({ orgId: ctx.orgId, actorId: ctx.userId, action: "customer.update", entity: "Customer", entityId: id });
+  await audit({
+    orgId: ctx.orgId,
+    actorId: ctx.userId,
+    action: "customer.update",
+    entity: "Customer",
+    entityId: id,
+  });
 }
 
 export async function setCustomerActive(ctx: Ctx, id: string, isActive: boolean) {
@@ -109,7 +136,14 @@ export async function setCustomerActive(ctx: Ctx, id: string, isActive: boolean)
   if (res.count !== 1) throw new AppError("Customer not found", "NOT_FOUND");
 }
 
-const toInvoiceRow = (i: { id: string; number: string; issuedAt: Date; dueAt: Date; total: Prisma.Decimal; voidedAt: Date | null }): InvoiceRow => ({
+const toInvoiceRow = (i: {
+  id: string;
+  number: string;
+  issuedAt: Date;
+  dueAt: Date;
+  total: Prisma.Decimal;
+  voidedAt: Date | null;
+}): InvoiceRow => ({
   id: i.id,
   number: i.number,
   issuedAt: i.issuedAt,
@@ -117,7 +151,13 @@ const toInvoiceRow = (i: { id: string; number: string; issuedAt: Date; dueAt: Da
   totalCents: money(i.total),
   voided: !!i.voidedAt,
 });
-const toPaymentRow = (p: { id: string; invoiceId: string | null; amount: Prisma.Decimal; receivedAt: Date; voidedAt: Date | null }): PaymentRow => ({
+const toPaymentRow = (p: {
+  id: string;
+  invoiceId: string | null;
+  amount: Prisma.Decimal;
+  receivedAt: Date;
+  voidedAt: Date | null;
+}): PaymentRow => ({
   id: p.id,
   invoiceId: p.invoiceId,
   amountCents: money(p.amount),
@@ -138,24 +178,62 @@ export type CustomerRow = {
 };
 
 /** Customer book with live balances. Two queries for the whole org, grouped in memory. */
-export async function listCustomers(ctx: Ctx, opts: { q?: string; owingOnly?: boolean } = {}): Promise<CustomerRow[]> {
+export async function listCustomers(
+  ctx: Ctx,
+  opts: { q?: string; owingOnly?: boolean } = {},
+): Promise<CustomerRow[]> {
   guard(ctx);
   const [customers, invoices, payments] = await Promise.all([
     db.customer.findMany({
       where: {
         orgId: ctx.orgId,
-        ...(opts.q ? { OR: [{ name: { contains: opts.q, mode: "insensitive" } }, { phone: { contains: opts.q } }, { contactName: { contains: opts.q, mode: "insensitive" } }] } : {}),
+        ...(opts.q
+          ? {
+              OR: [
+                { name: { contains: opts.q, mode: "insensitive" } },
+                { phone: { contains: opts.q } },
+                { contactName: { contains: opts.q, mode: "insensitive" } },
+              ],
+            }
+          : {}),
       },
       orderBy: { name: "asc" },
       take: 500,
     }),
-    db.invoice.findMany({ where: { orgId: ctx.orgId, voidedAt: null }, select: { id: true, number: true, customerId: true, issuedAt: true, dueAt: true, total: true, voidedAt: true } }),
-    db.customerPayment.findMany({ where: { orgId: ctx.orgId, voidedAt: null }, select: { id: true, customerId: true, invoiceId: true, amount: true, receivedAt: true, voidedAt: true } }),
+    db.invoice.findMany({
+      where: { orgId: ctx.orgId, voidedAt: null },
+      select: {
+        id: true,
+        number: true,
+        customerId: true,
+        issuedAt: true,
+        dueAt: true,
+        total: true,
+        voidedAt: true,
+      },
+    }),
+    db.customerPayment.findMany({
+      where: { orgId: ctx.orgId, voidedAt: null },
+      select: {
+        id: true,
+        customerId: true,
+        invoiceId: true,
+        amount: true,
+        receivedAt: true,
+        voidedAt: true,
+      },
+    }),
   ]);
   const invBy = new Map<string, InvoiceRow[]>();
-  for (const i of invoices) (invBy.get(i.customerId) ?? invBy.set(i.customerId, []).get(i.customerId)!).push(toInvoiceRow(i));
+  for (const i of invoices)
+    (invBy.get(i.customerId) ?? invBy.set(i.customerId, []).get(i.customerId)!).push(
+      toInvoiceRow(i),
+    );
   const payBy = new Map<string, PaymentRow[]>();
-  for (const p of payments) (payBy.get(p.customerId) ?? payBy.set(p.customerId, []).get(p.customerId)!).push(toPaymentRow(p));
+  for (const p of payments)
+    (payBy.get(p.customerId) ?? payBy.set(p.customerId, []).get(p.customerId)!).push(
+      toPaymentRow(p),
+    );
   const now = new Date();
   const rows = customers.map((c): CustomerRow => {
     const inv = invBy.get(c.id) ?? [];
@@ -183,8 +261,14 @@ export async function getCustomerLedger(ctx: Ctx, id: string) {
   const customer = await db.customer.findFirst({ where: { id, orgId: ctx.orgId } });
   if (!customer) return null;
   const [invoices, payments] = await Promise.all([
-    db.invoice.findMany({ where: { orgId: ctx.orgId, customerId: id }, orderBy: { issuedAt: "asc" } }),
-    db.customerPayment.findMany({ where: { orgId: ctx.orgId, customerId: id }, orderBy: { receivedAt: "asc" } }),
+    db.invoice.findMany({
+      where: { orgId: ctx.orgId, customerId: id },
+      orderBy: { issuedAt: "asc" },
+    }),
+    db.customerPayment.findMany({
+      where: { orgId: ctx.orgId, customerId: id },
+      orderBy: { receivedAt: "asc" },
+    }),
   ]);
   const invRows = invoices.map(toInvoiceRow);
   const payRows = payments.map(toPaymentRow);
@@ -247,7 +331,9 @@ export async function createInvoice(ctx: Ctx, customerId: string, raw: unknown) 
   const d = parse(invoiceSchema, raw);
   const issuedAt = d.issuedAt ? new Date(d.issuedAt) : new Date();
   if (Number.isNaN(issuedAt.getTime()) || issuedAt.getTime() > Date.now() + 86_400_000)
-    throw new AppError("Enter a valid invoice date (not in the future).", "VALIDATION", { issuedAt: "Invalid date" });
+    throw new AppError("Enter a valid invoice date (not in the future).", "VALIDATION", {
+      issuedAt: "Invalid date",
+    });
   const { subtotalCents, vatCents, totalCents } = invoiceTotals(toCents(d.subtotal), d.vatPercent);
 
   const invoice = await db.$transaction(
@@ -257,11 +343,28 @@ export async function createInvoice(ctx: Ctx, customerId: string, raw: unknown) 
       if (!customer.isActive) throw new AppError("This customer is archived.", "FORBIDDEN");
 
       const [invs, pays] = await Promise.all([
-        tx.invoice.findMany({ where: { orgId: ctx.orgId, customerId } , select: { id: true, number: true, issuedAt: true, dueAt: true, total: true, voidedAt: true } }),
-        tx.customerPayment.findMany({ where: { orgId: ctx.orgId, customerId }, select: { id: true, invoiceId: true, amount: true, receivedAt: true, voidedAt: true } }),
+        tx.invoice.findMany({
+          where: { orgId: ctx.orgId, customerId },
+          select: {
+            id: true,
+            number: true,
+            issuedAt: true,
+            dueAt: true,
+            total: true,
+            voidedAt: true,
+          },
+        }),
+        tx.customerPayment.findMany({
+          where: { orgId: ctx.orgId, customerId },
+          select: { id: true, invoiceId: true, amount: true, receivedAt: true, voidedAt: true },
+        }),
       ]);
       const limit = customer.creditLimit == null ? null : money(customer.creditLimit);
-      const check = creditCheck(balanceCents(invs.map(toInvoiceRow), pays.map(toPaymentRow)), limit, totalCents);
+      const check = creditCheck(
+        balanceCents(invs.map(toInvoiceRow), pays.map(toPaymentRow)),
+        limit,
+        totalCents,
+      );
       let overridden = false;
       if (!check.ok) {
         if (!d.overrideCredit)
@@ -275,8 +378,14 @@ export async function createInvoice(ctx: Ctx, customerId: string, raw: unknown) 
       }
 
       const year = issuedAt.getUTCFullYear();
-      const existing = await tx.invoice.findMany({ where: { orgId: ctx.orgId, number: { startsWith: `INV-${year}-` } }, select: { number: true } });
-      const number = nextInvoiceNumber(existing.map((x) => x.number), year);
+      const existing = await tx.invoice.findMany({
+        where: { orgId: ctx.orgId, number: { startsWith: `INV-${year}-` } },
+        select: { number: true },
+      });
+      const number = nextInvoiceNumber(
+        existing.map((x) => x.number),
+        year,
+      );
       const created = await tx.invoice.create({
         data: {
           orgId: ctx.orgId,
@@ -303,7 +412,11 @@ export async function createInvoice(ctx: Ctx, customerId: string, raw: unknown) 
     action: "invoice.create",
     entity: "Invoice",
     entityId: invoice.created.id,
-    meta: { number: invoice.created.number, total: fromCents(totalCents), creditOverride: invoice.overridden || undefined },
+    meta: {
+      number: invoice.created.number,
+      total: fromCents(totalCents),
+      creditOverride: invoice.overridden || undefined,
+    },
   });
   return invoice.created;
 }
@@ -322,20 +435,29 @@ export async function recordPayment(ctx: Ctx, customerId: string, raw: unknown) 
   const d = parse(paymentSchema, raw);
   const receivedAt = d.receivedAt ? new Date(d.receivedAt) : new Date();
   if (Number.isNaN(receivedAt.getTime()) || receivedAt.getTime() > Date.now() + 86_400_000)
-    throw new AppError("Enter a valid payment date (not in the future).", "VALIDATION", { receivedAt: "Invalid date" });
+    throw new AppError("Enter a valid payment date (not in the future).", "VALIDATION", {
+      receivedAt: "Invalid date",
+    });
   const amountCents = toCents(d.amount);
 
   const payment = await db.$transaction(
     async (tx) => {
-      const customer = await tx.customer.findFirst({ where: { id: customerId, orgId: ctx.orgId }, select: { id: true } });
+      const customer = await tx.customer.findFirst({
+        where: { id: customerId, orgId: ctx.orgId },
+        select: { id: true },
+      });
       if (!customer) throw new AppError("Customer not found", "NOT_FOUND");
       if (d.invoiceId) {
         const inv = await tx.invoice.findFirst({
           where: { id: d.invoiceId, orgId: ctx.orgId, customerId },
           include: { payments: { where: { voidedAt: null }, select: { amount: true } } },
         });
-        if (!inv) throw new AppError("Invoice not found for this customer.", "NOT_FOUND", { invoiceId: "Not found" });
-        if (inv.voidedAt) throw new AppError("That invoice is void.", "VALIDATION", { invoiceId: "Void invoice" });
+        if (!inv)
+          throw new AppError("Invoice not found for this customer.", "NOT_FOUND", {
+            invoiceId: "Not found",
+          });
+        if (inv.voidedAt)
+          throw new AppError("That invoice is void.", "VALIDATION", { invoiceId: "Void invoice" });
         const owing = money(inv.total) - inv.payments.reduce((s, p) => s + money(p.amount), 0);
         if (amountCents > owing)
           throw new AppError(
@@ -360,7 +482,14 @@ export async function recordPayment(ctx: Ctx, customerId: string, raw: unknown) 
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
-  await audit({ orgId: ctx.orgId, actorId: ctx.userId, action: "payment.record", entity: "CustomerPayment", entityId: payment.id, meta: { amount: d.amount, method: d.method } });
+  await audit({
+    orgId: ctx.orgId,
+    actorId: ctx.userId,
+    action: "payment.record",
+    entity: "CustomerPayment",
+    entityId: payment.id,
+    meta: { amount: d.amount, method: d.method },
+  });
   return payment;
 }
 
@@ -371,18 +500,40 @@ export async function voidInvoice(ctx: Ctx, invoiceId: string, rawReason: unknow
   assertCanVoid(ctx);
   const reason = parse(z.object({ reason: reasonSchema }), { reason: rawReason }).reason;
   await db.$transaction(async (tx) => {
-    const res = await tx.invoice.updateMany({ where: { id: invoiceId, orgId: ctx.orgId, voidedAt: null }, data: { voidedAt: new Date(), voidReason: reason } });
+    const res = await tx.invoice.updateMany({
+      where: { id: invoiceId, orgId: ctx.orgId, voidedAt: null },
+      data: { voidedAt: new Date(), voidReason: reason },
+    });
     if (res.count !== 1) throw new AppError("Invoice not found or already void.", "NOT_FOUND");
     // Payments that were allocated to it stay on the account as unallocated credit.
-    await tx.customerPayment.updateMany({ where: { orgId: ctx.orgId, invoiceId }, data: { invoiceId: null } });
+    await tx.customerPayment.updateMany({
+      where: { orgId: ctx.orgId, invoiceId },
+      data: { invoiceId: null },
+    });
   });
-  await audit({ orgId: ctx.orgId, actorId: ctx.userId, action: "invoice.void", entity: "Invoice", entityId: invoiceId, meta: { reason } });
+  await audit({
+    orgId: ctx.orgId,
+    actorId: ctx.userId,
+    action: "invoice.void",
+    entity: "Invoice",
+    entityId: invoiceId,
+    meta: { reason },
+  });
 }
 
 export async function voidPayment(ctx: Ctx, paymentId: string) {
   guard(ctx);
   assertCanVoid(ctx);
-  const res = await db.customerPayment.updateMany({ where: { id: paymentId, orgId: ctx.orgId, voidedAt: null }, data: { voidedAt: new Date() } });
+  const res = await db.customerPayment.updateMany({
+    where: { id: paymentId, orgId: ctx.orgId, voidedAt: null },
+    data: { voidedAt: new Date() },
+  });
   if (res.count !== 1) throw new AppError("Payment not found or already void.", "NOT_FOUND");
-  await audit({ orgId: ctx.orgId, actorId: ctx.userId, action: "payment.void", entity: "CustomerPayment", entityId: paymentId });
+  await audit({
+    orgId: ctx.orgId,
+    actorId: ctx.userId,
+    action: "payment.void",
+    entity: "CustomerPayment",
+    entityId: paymentId,
+  });
 }

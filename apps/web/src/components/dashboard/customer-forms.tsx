@@ -50,10 +50,24 @@ export function CustomerForm({ c }: { c?: CustomerDefaults }) {
           <Input name="taxNumber" maxLength={40} defaultValue={c?.taxNumber ?? ""} />
         </Field>
         <Field label="Credit limit (leave empty for no limit)" error={fe(state, "creditLimit")}>
-          <Input name="creditLimit" type="number" inputMode="decimal" min="0" step="0.01" defaultValue={c?.creditLimit ?? ""} />
+          <Input
+            name="creditLimit"
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.01"
+            defaultValue={c?.creditLimit ?? ""}
+          />
         </Field>
         <Field label="Payment terms (days)" error={fe(state, "paymentTermsDays")}>
-          <Input name="paymentTermsDays" type="number" min="0" max="365" step="1" defaultValue={c?.paymentTermsDays ?? 30} />
+          <Input
+            name="paymentTermsDays"
+            type="number"
+            min="0"
+            max="365"
+            step="1"
+            defaultValue={c?.paymentTermsDays ?? 30}
+          />
         </Field>
         <div className="sm:col-span-2">
           <Field label="Address" error={fe(state, "address")}>
@@ -92,11 +106,23 @@ export function InvoiceForm({
         <input type="hidden" name="customerId" value={customerId} />
         <div className="sm:col-span-2">
           <Field label="What was supplied" error={fe(state, "description")}>
-            <Input name="description" required maxLength={300} placeholder="e.g. 200 bags cement, delivered to site" />
+            <Input
+              name="description"
+              required
+              maxLength={300}
+              placeholder="e.g. 200 bags cement, delivered to site"
+            />
           </Field>
         </div>
         <Field label="Amount before VAT" error={fe(state, "subtotal")}>
-          <Input name="subtotal" type="number" inputMode="decimal" min="0.01" step="0.01" required />
+          <Input
+            name="subtotal"
+            type="number"
+            inputMode="decimal"
+            min="0.01"
+            step="0.01"
+            required
+          />
         </Field>
         <Field label="VAT %" error={fe(state, "vatPercent")}>
           <Input name="vatPercent" type="number" min="0" max="100" step="0.01" defaultValue={5} />
@@ -105,7 +131,14 @@ export function InvoiceForm({
           <Input name="issuedAt" type="date" />
         </Field>
         <Field label="Payment terms (days)" error={fe(state, "termsDays")}>
-          <Input name="termsDays" type="number" min="0" max="365" step="1" defaultValue={defaultTerms} />
+          <Input
+            name="termsDays"
+            type="number"
+            min="0"
+            max="365"
+            step="1"
+            defaultValue={defaultTerms}
+          />
         </Field>
         <Field label="Your reference (order / PO no.)" error={fe(state, "reference")}>
           <Input name="reference" maxLength={80} />
@@ -115,7 +148,8 @@ export function InvoiceForm({
         </Field>
         {canOverride && overLimit ? (
           <label className="flex items-center gap-2 text-sm sm:col-span-2">
-            <input type="checkbox" name="overrideCredit" /> Override the credit limit for this invoice
+            <input type="checkbox" name="overrideCredit" /> Override the credit limit for this
+            invoice
           </label>
         ) : null}
         <div className="sm:col-span-2">
@@ -147,7 +181,10 @@ export function PaymentForm({
           <Select name="method" defaultValue="BANK_TRANSFER">
             {PAYMENT_METHODS.map((m) => (
               <option key={m} value={m}>
-                {m.replace("_", " ").toLowerCase().replace(/^./, (c) => c.toUpperCase())}
+                {m
+                  .replace("_", " ")
+                  .toLowerCase()
+                  .replace(/^./, (c) => c.toUpperCase())}
               </option>
             ))}
           </Select>
@@ -180,13 +217,26 @@ export function PaymentForm({
   );
 }
 
-export function VoidInvoiceForm({ customerId, invoiceId }: { customerId: string; invoiceId: string }) {
+export function VoidInvoiceForm({
+  customerId,
+  invoiceId,
+}: {
+  customerId: string;
+  invoiceId: string;
+}) {
   const [state, action] = useActionState<ActionState, FormData>(voidInvoiceAction, {});
   return (
     <form action={action} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="customerId" value={customerId} />
       <input type="hidden" name="invoiceId" value={invoiceId} />
-      <input name="reason" required minLength={3} maxLength={200} placeholder="Reason for voiding" className="h-8 rounded-lg border border-line px-2 text-xs" />
+      <input
+        name="reason"
+        required
+        minLength={3}
+        maxLength={200}
+        placeholder="Reason for voiding"
+        className="h-8 rounded-lg border border-line px-2 text-xs"
+      />
       <SubmitButton>Void</SubmitButton>
       {state.error ? <span className="text-xs text-red-600">{state.error}</span> : null}
     </form>

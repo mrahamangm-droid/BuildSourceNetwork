@@ -3,6 +3,7 @@ import { assertCan, type Ctx } from "../ctx";
 import { AppError } from "../errors";
 import { audit } from "./notify";
 import { moveInTx } from "./inventory";
+import { listWarehouseOptions } from "./branches";
 import { StockError } from "../stock-math";
 import {
   autoActionFor,
@@ -39,7 +40,13 @@ function asAppError(e: unknown, productName?: string): never {
 type OrderWithItems = Awaited<ReturnType<typeof supplierOrder>>;
 
 /** Releases (and for "issue", then issues) every RESERVED line. Returns how many lines changed. */
-async function transition(tx: Tx, actor: Actor, order: OrderWithItems, action: "issue" | "release", note: string) {
+async function transition(
+  tx: Tx,
+  actor: Actor,
+  order: OrderWithItems,
+  action: "issue" | "release",
+  note: string,
+) {
   let changed = 0;
   for (const item of order.items) {
     const target = nextState(item.stockState, action);
@@ -76,7 +83,9 @@ export async function getOrderStock(ctx: Ctx, orderId: string) {
     select: { id: true, name: true, unitCode: true },
     take: 500,
   });
+  const warehouses = await listWarehouseOptions(ctx);
   return {
+    warehouses,
     canReserve: (RESERVABLE_ORDER_STATUSES as readonly string[]).includes(order.status),
     products,
     lines: order.items.map((i) => ({
@@ -92,12 +101,20 @@ export async function getOrderStock(ctx: Ctx, orderId: string) {
 }
 
 /** mapping: order item id -> the supplier's product id. Lines left blank are skipped. */
-export async function reserveOrderStock(ctx: Ctx, orderId: string, mapping: Record<string, string>) {
+export async function reserveOrderStock(
+  ctx: Ctx,
+  orderId: string,
+  mapping: Record<string, string>,
+  warehouseId = "",
+) {
   guard(ctx);
   const n = await db.$transaction(async (tx) => {
     const order = await supplierOrder(tx, ctx.orgId, orderId);
     if (!(RESERVABLE_ORDER_STATUSES as readonly string[]).includes(order.status))
-      throw new AppError("Stock can be reserved once the order is confirmed and until it is dispatched.", "FORBIDDEN");
+      throw new AppError(
+        "Stock can be reserved once the order is confirmed and until it is dispatched.",
+        "FORBIDDEN",
+      );
     let done = 0;
     for (const item of order.items) {
       const productId = mapping[item.id];
@@ -116,7 +133,7 @@ export async function reserveOrderStock(ctx: Ctx, orderId: string, mapping: Reco
       try {
         res = await moveInTx(tx, ctx, "RESERVE", {
           productId: product.id,
-          warehouseId: "",
+          warehouseId, // "" = the default (oldest) warehouse; ownership is checked in moveInTx
           quantity: Number(item.quantity.toString()),
           unitCost: undefined,
           reference: order.number,
@@ -132,7 +149,10 @@ export async function reserveOrderStock(ctx: Ctx, orderId: string, mapping: Reco
       done++;
     }
     if (!done)
-      throw new AppError("Choose a product for at least one line that is not already reserved.", "VALIDATION");
+      throw new AppError(
+        "Choose a product for at least one line that is not already reserved.",
+        "VALIDATION",
+      );
     return done;
   }, SERIAL);
   await audit({
@@ -152,7 +172,13 @@ async function manual(ctx: Ctx, orderId: string, action: "issue" | "release") {
     const order = await supplierOrder(tx, ctx.orgId, orderId);
     if (action === "issue" && order.status === "CANCELLED")
       throw new AppError("This order is cancelled. Release the reservation instead.", "FORBIDDEN");
-    const changed = await transition(tx, ctx, order, action, `${action === "issue" ? "Issued" : "Released"} for order ${order.number}`);
+    const changed = await transition(
+      tx,
+      ctx,
+      order,
+      action,
+      `${action === "issue" ? "Issued" : "Released"} for order ${order.number}`,
+    );
     if (!changed) throw new AppError("There is no reserved stock on this order.", "VALIDATION");
     return changed;
   }, SERIAL);
@@ -179,7 +205,10 @@ export const releaseOrderStock = (ctx: Ctx, orderId: string) => manual(ctx, orde
 export async function syncOrderStock(orderId: string, orderStatus: string) {
   const action = autoActionFor(orderStatus);
   if (!action) return;
-  const order0 = await db.order.findUnique({ where: { id: orderId }, select: { supplierOrgId: true } });
+  const order0 = await db.order.findUnique({
+    where: { id: orderId },
+    select: { supplierOrgId: true },
+  });
   if (!order0) return;
   const actor: Actor = { orgId: order0.supplierOrgId, userId: null };
   try {
@@ -196,7 +225,11 @@ export async function syncOrderStock(orderId: string, orderStatus: string) {
         meta: { lines: n, orderStatus },
       });
   } catch (e) {
-    console.error("[order-stock] automatic sync failed", orderId, e instanceof Error ? e.message : e);
+    console.error(
+      "[order-stock] automatic sync failed",
+      orderId,
+      e instanceof Error ? e.message : e,
+    );
     await audit({
       orgId: actor.orgId,
       action: "order.stock_sync_failed",

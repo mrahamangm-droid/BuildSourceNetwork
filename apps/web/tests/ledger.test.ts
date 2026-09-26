@@ -1,37 +1,81 @@
 import { describe, expect, it } from "vitest";
 import {
-  aging, balanceCents, buildStatement, creditCheck, dueDateFor, invoiceStatus, invoiceTotals,
-  nextInvoiceNumber, outstandingByInvoice, toCents, type InvoiceRow, type PaymentRow,
+  aging,
+  balanceCents,
+  buildStatement,
+  creditCheck,
+  dueDateFor,
+  invoiceStatus,
+  invoiceTotals,
+  nextInvoiceNumber,
+  outstandingByInvoice,
+  toCents,
+  type InvoiceRow,
+  type PaymentRow,
 } from "@/lib/ledger";
 
 const d = (s: string) => new Date(s + "T00:00:00Z");
-const inv = (id: string, issued: string, due: string, total: number, voided = false): InvoiceRow => ({
-  id, number: id, issuedAt: d(issued), dueAt: d(due), totalCents: toCents(total), voided,
+const inv = (
+  id: string,
+  issued: string,
+  due: string,
+  total: number,
+  voided = false,
+): InvoiceRow => ({
+  id,
+  number: id,
+  issuedAt: d(issued),
+  dueAt: d(due),
+  totalCents: toCents(total),
+  voided,
 });
-const pay = (id: string, invoiceId: string | null, amount: number, at: string, voided = false): PaymentRow => ({
-  id, invoiceId, amountCents: toCents(amount), receivedAt: d(at), voided,
+const pay = (
+  id: string,
+  invoiceId: string | null,
+  amount: number,
+  at: string,
+  voided = false,
+): PaymentRow => ({
+  id,
+  invoiceId,
+  amountCents: toCents(amount),
+  receivedAt: d(at),
+  voided,
 });
 
 describe("ledger", () => {
   it("converts money to cents without float drift", () => {
     expect(toCents(0.1 + 0.2)).toBe(30);
     expect(toCents(1.005)).toBe(101);
-    expect(invoiceTotals(toCents(1000), 5)).toEqual({ subtotalCents: 100000, vatCents: 5000, totalCents: 105000 });
+    expect(invoiceTotals(toCents(1000), 5)).toEqual({
+      subtotalCents: 100000,
+      vatCents: 5000,
+      totalCents: 105000,
+    });
     expect(invoiceTotals(toCents(33.33), 5).totalCents).toBe(3500);
   });
   it("balance ignores void invoices and void payments", () => {
-    const invs = [inv("a", "2026-01-01", "2026-01-31", 100), inv("b", "2026-02-01", "2026-03-03", 50, true)];
+    const invs = [
+      inv("a", "2026-01-01", "2026-01-31", 100),
+      inv("b", "2026-02-01", "2026-03-03", 50, true),
+    ];
     const pays = [pay("p1", "a", 30, "2026-01-10"), pay("p2", null, 999, "2026-01-11", true)];
     expect(balanceCents(invs, pays)).toBe(7000);
   });
   it("applies unallocated payments first-in-first-out", () => {
-    const invs = [inv("old", "2026-01-01", "2026-01-31", 100), inv("new", "2026-02-01", "2026-03-03", 100)];
+    const invs = [
+      inv("old", "2026-01-01", "2026-01-31", 100),
+      inv("new", "2026-02-01", "2026-03-03", 100),
+    ];
     const out = outstandingByInvoice(invs, [pay("p", null, 130, "2026-02-10")]);
     expect(out.get("old")).toBe(0);
     expect(out.get("new")).toBe(7000);
   });
   it("carries an overpayment on one invoice to the next", () => {
-    const invs = [inv("a", "2026-01-01", "2026-01-31", 100), inv("b", "2026-02-01", "2026-03-03", 100)];
+    const invs = [
+      inv("a", "2026-01-01", "2026-01-31", 100),
+      inv("b", "2026-02-01", "2026-03-03", 100),
+    ];
     const out = outstandingByInvoice(invs, [pay("p", "a", 150, "2026-01-05")]);
     expect(out.get("a")).toBe(0);
     expect(out.get("b")).toBe(5000);
@@ -67,11 +111,17 @@ describe("ledger", () => {
   });
   it("numbers invoices per year and never reuses a number", () => {
     expect(nextInvoiceNumber([], 2026)).toBe("INV-2026-0001");
-    expect(nextInvoiceNumber(["INV-2026-0001", "INV-2026-0007", "INV-2025-0099", "junk"], 2026)).toBe("INV-2026-0008");
+    expect(
+      nextInvoiceNumber(["INV-2026-0001", "INV-2026-0007", "INV-2025-0099", "junk"], 2026),
+    ).toBe("INV-2026-0008");
     expect(nextInvoiceNumber(["INV-2025-0099"], 2026)).toBe("INV-2026-0001");
   });
   it("builds a statement whose last balance equals the ledger balance", () => {
-    const invs = [inv("A", "2026-01-01", "2026-01-31", 100), inv("B", "2026-02-01", "2026-03-03", 200), inv("X", "2026-02-02", "2026-03-04", 500, true)];
+    const invs = [
+      inv("A", "2026-01-01", "2026-01-31", 100),
+      inv("B", "2026-02-01", "2026-03-03", 200),
+      inv("X", "2026-02-02", "2026-03-04", 500, true),
+    ];
     const pays = [pay("p1", "A", 100, "2026-01-15"), pay("p2", null, 50, "2026-02-10")];
     const s = buildStatement(invs, pays);
     expect(s.map((l) => l.balanceCents)).toEqual([10000, 0, 20000, 20000, 15000]);

@@ -4,20 +4,33 @@ import { checkTransition, scheduleError, statusAfterDriverEdit } from "@/lib/del
 describe("delivery rules", () => {
   it("follows PENDING -> ASSIGNED -> OUT_FOR_DELIVERY -> DELIVERED", () => {
     expect(checkTransition({ status: "PENDING", driverName: "Ali" }, "ASSIGNED")).toBeNull();
-    expect(checkTransition({ status: "ASSIGNED", driverName: "Ali" }, "OUT_FOR_DELIVERY")).toBeNull();
-    expect(checkTransition({ status: "OUT_FOR_DELIVERY", recipientName: "Site foreman" }, "DELIVERED")).toBeNull();
+    expect(
+      checkTransition({ status: "ASSIGNED", driverName: "Ali" }, "OUT_FOR_DELIVERY"),
+    ).toBeNull();
+    expect(
+      checkTransition({ status: "OUT_FOR_DELIVERY", recipientName: "Site foreman" }, "DELIVERED"),
+    ).toBeNull();
   });
   it("needs a driver before assigning or dispatching", () => {
     expect(checkTransition({ status: "PENDING" }, "ASSIGNED")).toMatch(/driver/i);
-    expect(checkTransition({ status: "PENDING", driverName: "  " }, "OUT_FOR_DELIVERY")).toMatch(/driver/i);
+    expect(checkTransition({ status: "PENDING", driverName: "  " }, "OUT_FOR_DELIVERY")).toMatch(
+      /driver/i,
+    );
   });
   it("needs a recipient name as proof before delivered", () => {
     expect(checkTransition({ status: "OUT_FOR_DELIVERY" }, "DELIVERED")).toMatch(/received/i);
   });
   it("blocks skipping and going backwards", () => {
     expect(checkTransition({ status: "PENDING", driverName: "Ali" }, "DELIVERED")).not.toBeNull();
-    expect(checkTransition({ status: "DELIVERED", driverName: "Ali", recipientName: "X" }, "OUT_FOR_DELIVERY")).not.toBeNull();
-    expect(checkTransition({ status: "OUT_FOR_DELIVERY", driverName: "Ali" }, "ASSIGNED")).not.toBeNull();
+    expect(
+      checkTransition(
+        { status: "DELIVERED", driverName: "Ali", recipientName: "X" },
+        "OUT_FOR_DELIVERY",
+      ),
+    ).not.toBeNull();
+    expect(
+      checkTransition({ status: "OUT_FOR_DELIVERY", driverName: "Ali" }, "ASSIGNED"),
+    ).not.toBeNull();
   });
   it("driver edits promote and demote before departure only", () => {
     expect(statusAfterDriverEdit("PENDING", "Ali")).toBe("ASSIGNED");

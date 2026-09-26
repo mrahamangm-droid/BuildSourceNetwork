@@ -63,7 +63,14 @@ export function ProjectForm({ p }: { p?: ProjectDefaults }) {
           <Input name="startDate" type="date" defaultValue={p?.startDate ?? ""} />
         </Field>
         <Field label="Materials budget (optional)" error={fe(state, "budget")}>
-          <Input name="budget" type="number" inputMode="decimal" min="0" step="0.01" defaultValue={p?.budget ?? ""} />
+          <Input
+            name="budget"
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.01"
+            defaultValue={p?.budget ?? ""}
+          />
         </Field>
         <div className="sm:col-span-2">
           <Field label="Notes" error={fe(state, "notes")}>
@@ -87,7 +94,13 @@ export function AddItemForm({ projectId, sections }: { projectId: string; sectio
       <form action={action} className="mt-3 grid gap-3 sm:grid-cols-3">
         <input type="hidden" name="projectId" value={projectId} />
         <Field label="Section" error={fe(state, "section")}>
-          <Input name="section" required maxLength={60} list="boq-sections" placeholder="e.g. Structure" />
+          <Input
+            name="section"
+            required
+            maxLength={60}
+            list="boq-sections"
+            placeholder="e.g. Structure"
+          />
           <datalist id="boq-sections">
             {sections.map((s) => (
               <option key={s} value={s} />
@@ -106,7 +119,15 @@ export function AddItemForm({ projectId, sections }: { projectId: string; sectio
           <Input name="quantity" type="number" inputMode="decimal" min="0" step="0.001" required />
         </Field>
         <Field label="Waste %" error={fe(state, "wastePercent")}>
-          <Input name="wastePercent" type="number" inputMode="decimal" min="0" max="100" step="0.5" defaultValue={0} />
+          <Input
+            name="wastePercent"
+            type="number"
+            inputMode="decimal"
+            min="0"
+            max="100"
+            step="0.5"
+            defaultValue={0}
+          />
         </Field>
         <Field label="Unit rate (optional)" error={fe(state, "unitRate")}>
           <Input name="unitRate" type="number" inputMode="decimal" min="0" step="0.01" />
@@ -126,8 +147,9 @@ export function StarterForm({ projectId }: { projectId: string }) {
     <Card>
       <h3 className="font-semibold">Generate a starter bill</h3>
       <p className="mt-1 text-sm text-muted">
-        A rule-based estimate from gross floor area and the project type. It multiplies your area by planning ratios;
-        it is not a drawing take-off, so check every quantity before you buy. Lines are added without rates.
+        A rule-based estimate from gross floor area and the project type. It multiplies your area by
+        planning ratios; it is not a drawing take-off, so check every quantity before you buy. Lines
+        are added without rates.
       </p>
       <form action={action} className="mt-3 grid gap-3 sm:grid-cols-3">
         <input type="hidden" name="projectId" value={projectId} />
@@ -163,7 +185,14 @@ export function BoqRow({
   orderQty,
 }: {
   projectId: string;
-  item: { id: string; description: string; unit: string; quantity: number; wastePercent: number; unitRate: number | null };
+  item: {
+    id: string;
+    description: string;
+    unit: string;
+    quantity: number;
+    wastePercent: number;
+    unitRate: number | null;
+  };
   cost: string;
   orderQty: number;
 }) {
@@ -187,16 +216,50 @@ export function BoqRow({
         <p className="text-xs text-muted">
           {item.unit} · order {orderQty}
         </p>
-        {err ? <p role="alert" className="text-xs text-red-700">{err}</p> : null}
+        {err ? (
+          <p role="alert" className="text-xs text-red-700">
+            {err}
+          </p>
+        ) : null}
       </td>
       <td className="px-3 py-2" colSpan={3}>
         <form action={action} id={`f-${item.id}`} className="flex flex-wrap items-center gap-2">
           <input type="hidden" name="projectId" value={projectId} />
           <input type="hidden" name="itemId" value={item.id} />
-          <input aria-label="Quantity" name="quantity" type="number" step="0.001" min="0" required defaultValue={item.quantity} className="h-8 w-24 rounded border border-line px-2 text-sm" />
-          <input aria-label="Waste percent" name="wastePercent" type="number" step="0.5" min="0" max="100" defaultValue={item.wastePercent} className="h-8 w-16 rounded border border-line px-2 text-sm" />
-          <input aria-label="Unit rate" name="unitRate" type="number" step="0.01" min="0" placeholder="rate" defaultValue={item.unitRate ?? ""} className="h-8 w-24 rounded border border-line px-2 text-sm" />
-          <button type="submit" className="h-8 rounded border border-line px-2 text-xs hover:bg-surface">
+          <input
+            aria-label="Quantity"
+            name="quantity"
+            type="number"
+            step="0.001"
+            min="0"
+            required
+            defaultValue={item.quantity}
+            className="h-8 w-24 rounded border border-line px-2 text-sm"
+          />
+          <input
+            aria-label="Waste percent"
+            name="wastePercent"
+            type="number"
+            step="0.5"
+            min="0"
+            max="100"
+            defaultValue={item.wastePercent}
+            className="h-8 w-16 rounded border border-line px-2 text-sm"
+          />
+          <input
+            aria-label="Unit rate"
+            name="unitRate"
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder="rate"
+            defaultValue={item.unitRate ?? ""}
+            className="h-8 w-24 rounded border border-line px-2 text-sm"
+          />
+          <button
+            type="submit"
+            className="h-8 rounded border border-line px-2 text-xs hover:bg-surface"
+          >
             Save
           </button>
         </form>
@@ -206,7 +269,11 @@ export function BoqRow({
         <form action={delAction}>
           <input type="hidden" name="projectId" value={projectId} />
           <input type="hidden" name="itemId" value={item.id} />
-          <button type="submit" aria-label={`Delete ${item.description}`} className="text-xs text-red-700 hover:underline">
+          <button
+            type="submit"
+            aria-label={`Delete ${item.description}`}
+            className="text-xs text-red-700 hover:underline"
+          >
             Delete
           </button>
         </form>

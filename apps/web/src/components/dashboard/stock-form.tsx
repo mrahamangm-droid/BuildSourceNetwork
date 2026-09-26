@@ -12,7 +12,15 @@ const KINDS = [
   { value: "RELEASE", label: "Release a reservation" },
 ];
 
-export function StockForm({ products }: { products: { id: string; name: string; unit: string }[] }) {
+export function StockForm({
+  products,
+  warehouses = [],
+  defaultWarehouseId,
+}: {
+  products: { id: string; name: string; unit: string }[];
+  warehouses?: { id: string; label: string }[];
+  defaultWarehouseId?: string;
+}) {
   const [state, action] = useActionState<ActionState, FormData>(stockMovementAction, {});
   return (
     <Card>
@@ -39,6 +47,17 @@ export function StockForm({ products }: { products: { id: string; name: string; 
             ))}
           </Select>
         </Field>
+        {warehouses.length > 1 ? (
+          <Field label="Warehouse" error={fe(state, "warehouseId")}>
+            <Select name="warehouseId" defaultValue={defaultWarehouseId ?? warehouses[0].id}>
+              {warehouses.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        ) : null}
         <Field label="Quantity" error={fe(state, "quantity")}>
           <Input name="quantity" type="number" inputMode="decimal" step="0.001" min="0" required />
         </Field>

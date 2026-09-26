@@ -23,7 +23,10 @@ async function canAccess(ctx: Ctx, rfqId: string): Promise<boolean> {
     });
     return !!r;
   }
-  const rfq = await db.rfq.findFirst({ where: { id: rfqId, buyerOrgId: ctx.orgId }, select: { id: true } });
+  const rfq = await db.rfq.findFirst({
+    where: { id: rfqId, buyerOrgId: ctx.orgId },
+    select: { id: true },
+  });
   return !!rfq;
 }
 

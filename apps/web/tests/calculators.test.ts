@@ -5,7 +5,8 @@ const get = (slug: string, v: Record<string, number | string> = {}) => {
   const c = CALCULATORS.find((x) => x.slug === slug)!;
   return c.compute({ ...defaultValues(c), ...v });
 };
-const row = (o: ReturnType<typeof get>, label: string) => o.rows.find((r) => r.label === label)!.value;
+const row = (o: ReturnType<typeof get>, label: string) =>
+  o.rows.find((r) => r.label === label)!.value;
 
 describe("calculators", () => {
   it("gives ~8 bags of cement per m3 of M20 concrete", () => {
@@ -26,7 +27,15 @@ describe("calculators", () => {
     expect(row(o, "Units before wastage")).toBe(375);
   });
   it("tiles round up and boxes cover them", () => {
-    const o = get("tile-calculator", { length: 3, width: 3, tileL: 300, tileW: 300, gap: 0, waste: 0, perBox: 10 });
+    const o = get("tile-calculator", {
+      length: 3,
+      width: 3,
+      tileL: 300,
+      tileW: 300,
+      gap: 0,
+      waste: 0,
+      perBox: 10,
+    });
     expect(row(o, "Tiles needed")).toBe(100);
     expect(row(o, "Boxes to order")).toBe(10);
   });
@@ -40,7 +49,9 @@ describe("calculators", () => {
   });
   it("never returns NaN for empty or zero input", () => {
     for (const c of CALCULATORS) {
-      const zero = Object.fromEntries(c.inputs.map((i) => [i.key, i.type === "number" ? 0 : i.default]));
+      const zero = Object.fromEntries(
+        c.inputs.map((i) => [i.key, i.type === "number" ? 0 : i.default]),
+      );
       for (const r of c.compute(zero).rows) expect(Number.isFinite(r.value)).toBe(true);
       for (const r of c.compute({}).rows) expect(Number.isFinite(r.value)).toBe(true);
     }

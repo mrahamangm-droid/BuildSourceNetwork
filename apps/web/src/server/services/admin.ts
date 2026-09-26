@@ -60,8 +60,7 @@ export async function submitVerification(ctx: Ctx, raw: unknown) {
     where: { id: ctx.orgId },
     select: { verificationStatus: true, isDemo: true },
   });
-  if (org.isDemo)
-    throw new AppError("Demo companies cannot be verified.", "FORBIDDEN");
+  if (org.isDemo) throw new AppError("Demo companies cannot be verified.", "FORBIDDEN");
   if (org.verificationStatus === "VERIFIED")
     throw new AppError("Your business is already verified.", "CONFLICT");
   if (org.verificationStatus === "PENDING")
@@ -127,7 +126,12 @@ export async function reviewVerification(
     // Only a PENDING request can be decided, exactly once.
     const claimed = await tx.verificationRequest.updateMany({
       where: { id: requestId, status: "PENDING" },
-      data: { status, reviewedById: actor.userId, reviewedAt: new Date(), reviewNote: cleanNote || null },
+      data: {
+        status,
+        reviewedById: actor.userId,
+        reviewedAt: new Date(),
+        reviewNote: cleanNote || null,
+      },
     });
     if (claimed.count !== 1)
       throw new AppError("This request has already been reviewed.", "CONFLICT");
@@ -151,7 +155,8 @@ export async function reviewVerification(
       decision === "APPROVE"
         ? "Your business is now verified"
         : "Your verification request was not approved",
-    body: decision === "APPROVE" ? "A Verified business badge now shows on your profile." : cleanNote,
+    body:
+      decision === "APPROVE" ? "A Verified business badge now shows on your profile." : cleanNote,
     href: "/dashboard/verification",
   });
 }
@@ -269,8 +274,7 @@ export async function setOrgActive(actor: AdminActor, orgId: string, isActive: b
 export async function revokeVerification(actor: AdminActor, orgId: string, reason: string) {
   assertAdmin(actor);
   const r = reason.trim().slice(0, 1000);
-  if (r.length < 3)
-    throw new AppError("Enter a reason.", "VALIDATION", { note: "Enter a reason" });
+  if (r.length < 3) throw new AppError("Enter a reason.", "VALIDATION", { note: "Enter a reason" });
   const moved = await db.organization.updateMany({
     where: { id: orgId, verificationStatus: "VERIFIED" },
     data: { verificationStatus: "UNVERIFIED" },
@@ -329,5 +333,9 @@ export async function updateSettings(actor: AdminActor, raw: Record<string, unkn
     throw new AppError("Please fix the highlighted fields.", "VALIDATION", errors);
   for (const [key, value] of updates)
     await db.platformSetting.upsert({ where: { key }, update: { value }, create: { key, value } });
-  await audit({ actorId: actor.userId, action: "settings.updated", meta: Object.fromEntries(updates) });
+  await audit({
+    actorId: actor.userId,
+    action: "settings.updated",
+    meta: Object.fromEntries(updates),
+  });
 }

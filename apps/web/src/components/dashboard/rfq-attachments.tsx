@@ -3,11 +3,16 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Alert, Button, Card } from "@/components/ui";
 import { removeRfqAttachmentAction } from "@/server/actions";
-import { ALLOWED_EXTENSIONS, MAX_ATTACHMENTS_PER_RFQ, MAX_ATTACHMENT_BYTES } from "@/lib/attachments";
+import {
+  ALLOWED_EXTENSIONS,
+  MAX_ATTACHMENTS_PER_RFQ,
+  MAX_ATTACHMENT_BYTES,
+} from "@/lib/attachments";
 
 type Att = { id: string; filename: string; sizeBytes: number };
 
-const size = (n: number) => (n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1048576).toFixed(1)} MB`);
+const size = (n: number) =>
+  n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1048576).toFixed(1)} MB`;
 
 /** `canEdit` = buyer of an open RFQ. Suppliers get a read-only list of download links. */
 export function RfqAttachments({

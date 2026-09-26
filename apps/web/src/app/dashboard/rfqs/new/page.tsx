@@ -90,9 +90,10 @@ export default async function NewRfqPage({ searchParams }: { searchParams: Promi
       />
       {project ? (
         <Alert>
-          {initialItems?.length ?? 0} line{initialItems?.length === 1 ? "" : "s"} copied from the BOQ of{" "}
-          <strong>{project.name}</strong>, using order quantities (waste included). Remove works items such as
-          excavation or formwork, and check every category and unit before sending.
+          {initialItems?.length ?? 0} line{initialItems?.length === 1 ? "" : "s"} copied from the
+          BOQ of <strong>{project.name}</strong>, using order quantities (waste included). Remove
+          works items such as excavation or formwork, and check every category and unit before
+          sending.
         </Alert>
       ) : null}
       <RfqForm

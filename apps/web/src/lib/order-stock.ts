@@ -18,7 +18,10 @@ export const STOCK_STATE_LABEL: Record<OrderStockState, string> = {
 /** Order statuses in which stock may be reserved. */
 export const RESERVABLE_ORDER_STATUSES = ["CONFIRMED", "PREPARING"] as const;
 
-export function nextState(state: OrderStockState, action: OrderStockAction): OrderStockState | null {
+export function nextState(
+  state: OrderStockState,
+  action: OrderStockAction,
+): OrderStockState | null {
   switch (action) {
     case "reserve":
       return state === "NONE" || state === "RELEASED" ? "RESERVED" : null;
@@ -30,7 +33,7 @@ export function nextState(state: OrderStockState, action: OrderStockAction): Ord
 }
 
 /** What an order status change should do to reserved stock automatically. */
-export function autoActionFor(orderStatus: string): OrderStockAction | null {
+export function autoActionFor(orderStatus: string): Exclude<OrderStockAction, "reserve"> | null {
   if (orderStatus === "DISPATCHED") return "issue";
   if (orderStatus === "CANCELLED") return "release";
   return null;

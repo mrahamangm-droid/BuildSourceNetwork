@@ -98,7 +98,9 @@ export function summarize<T extends BoqLine & { section: string }>(
     itemCount: items.length,
     varianceCents: budgetCents === null ? null : budgetCents - total,
     budgetUsedPercent:
-      budgetCents === null || budgetCents === 0 ? null : Math.round((total / budgetCents) * 1000) / 10,
+      budgetCents === null || budgetCents === 0
+        ? null
+        : Math.round((total / budgetCents) * 1000) / 10,
   };
 }
 
@@ -177,7 +179,16 @@ export function csvCell(v: string | number): string {
 export function boqCsv(
   items: (BoqLine & { section: string; description: string; unit: string })[],
 ): string {
-  const head = ["Section", "Description", "Unit", "Quantity", "Waste %", "Order quantity", "Unit rate", "Cost"];
+  const head = [
+    "Section",
+    "Description",
+    "Unit",
+    "Quantity",
+    "Waste %",
+    "Order quantity",
+    "Unit rate",
+    "Cost",
+  ];
   const rows = items.map((i) => {
     const c = lineCostCents(i);
     return [

@@ -50,6 +50,7 @@ export function statusAfterDriverEdit(status: DeliveryStatusValue, driverName?: 
 export function scheduleError(when: Date, now = new Date()): string | null {
   if (Number.isNaN(when.getTime())) return "Enter a valid date and time.";
   if (when.getTime() < now.getTime() - 24 * 3600 * 1000) return "The delivery date is in the past.";
-  if (when.getTime() > now.getTime() + 365 * 24 * 3600 * 1000) return "The delivery date is too far ahead.";
+  if (when.getTime() > now.getTime() + 365 * 24 * 3600 * 1000)
+    return "The delivery date is too far ahead.";
   return null;
 }

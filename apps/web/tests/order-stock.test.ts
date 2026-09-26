@@ -22,7 +22,8 @@ describe("autoActionFor", () => {
   it("issues on dispatch, releases on cancel, otherwise nothing", () => {
     expect(autoActionFor("DISPATCHED")).toBe("issue");
     expect(autoActionFor("CANCELLED")).toBe("release");
-    for (const s of ["CONFIRMED", "PREPARING", "DELIVERED", "COMPLETED"]) expect(autoActionFor(s)).toBeNull();
+    for (const s of ["CONFIRMED", "PREPARING", "DELIVERED", "COMPLETED"])
+      expect(autoActionFor(s)).toBeNull();
   });
 });
 

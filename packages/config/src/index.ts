@@ -90,6 +90,8 @@ export const CATEGORIES = [
 
 export { slugify } from "./slug";
 export * from "./taxonomy";
+export * from "./attributes";
+export * from "./brands";
 
 /**
  * Units are data, not code: the database stores them (Unit table) and this list only seeds it.

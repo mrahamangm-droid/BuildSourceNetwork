@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireCtx } from "@/server/access";
-import { getProject } from "@/server/services/projects";
+import { getProcurement, getProject } from "@/server/services/projects";
+import { ProjectWorkspace } from "@/components/dashboard/project-workspace";
+import { BoqImportForm } from "@/components/dashboard/boq-import-form";
 import { aiStatus } from "@/server/services/ai-boq";
 import { Badge, Button, Card, PageHeader } from "@/components/ui";
 import {
@@ -33,6 +35,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
   if (!data) notFound();
   const { project: p, summary: s } = data;
   const ai = await aiStatus(ctx);
+  const procurement = await getProcurement(ctx, id);
   const money = (c: number) => formatMoney(fromCents(c));
   return (
     <div className="space-y-6">
@@ -79,6 +82,8 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
           </p>
         </div>
       </div>
+
+      <ProjectWorkspace data={procurement} />
 
       <section>
         <div className="mb-2 flex items-center justify-between">
@@ -157,6 +162,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
         <AddItemForm projectId={id} sections={s.sections.map((x) => x.section)} />
         <StarterForm projectId={id} />
       </div>
+      <BoqImportForm projectId={id} />
       <AiBoqForm
         projectId={id}
         configured={ai.configured}

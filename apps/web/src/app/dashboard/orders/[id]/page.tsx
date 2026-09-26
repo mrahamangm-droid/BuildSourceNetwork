@@ -6,6 +6,7 @@ import { advanceOrderAction } from "@/server/actions";
 import { allowedTransitions, getOrder } from "@/server/services/orders";
 import { Alert, Badge, Button, Card, LinkButton, PageHeader } from "@/components/ui";
 import { ReviewForm } from "@/components/dashboard/review-form";
+import { ReplyForm } from "@/components/market/review-actions";
 import { DeliveryPanel } from "@/components/dashboard/delivery-panel";
 import { OrderStockPanel } from "@/components/dashboard/order-stock-panel";
 import { getOrderStock } from "@/server/services/order-stock";
@@ -139,7 +140,17 @@ export default async function OrderPage({
             <tbody className="divide-y divide-line">
               {order.items.map((i) => (
                 <tr key={i.id}>
-                  <td className="px-4 py-3">{i.name}</td>
+                  <td className="px-4 py-3">
+                    {i.name}
+                    {isBuyer && i.productId && ["DELIVERED", "COMPLETED"].includes(order.status) ? (
+                      <Link
+                        href={`/products/${i.productId}#reviews`}
+                        className="ml-2 text-xs text-brand-700 hover:underline"
+                      >
+                        Review this product
+                      </Link>
+                    ) : null}
+                  </td>
                   <td className="px-4 py-3">
                     {formatQty(i.quantity)} {i.unit.name.toLowerCase()}
                   </td>
@@ -268,8 +279,38 @@ export default async function OrderPage({
             Review: {"★".repeat(order.reviews[0].rating)}
             {"☆".repeat(5 - order.reviews[0].rating)}
           </p>
+          {order.reviews[0].title ? (
+            <p className="mt-1 font-medium">{order.reviews[0].title}</p>
+          ) : null}
           {order.reviews[0].comment ? (
             <p className="mt-1 text-slate-700">{order.reviews[0].comment}</p>
+          ) : null}
+          {order.reviews[0].photos.length ? (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {order.reviews[0].photos.map((u) => (
+                <a key={u} href={u} target="_blank" rel="noopener noreferrer">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={u}
+                    alt="Photo from the reviewer"
+                    className="h-16 w-16 rounded-lg border border-line object-cover"
+                  />
+                </a>
+              ))}
+            </div>
+          ) : null}
+          {order.reviews[0].reply ? (
+            <div className="mt-3 rounded-lg bg-surface p-3">
+              <p className="text-xs font-semibold text-muted">Reply from the supplier</p>
+              <p className="mt-1 whitespace-pre-line">{order.reviews[0].reply}</p>
+            </div>
+          ) : null}
+          {!isBuyer ? (
+            <ReplyForm
+              kind="ORDER"
+              reviewId={order.reviews[0].id}
+              existing={order.reviews[0].reply}
+            />
           ) : null}
         </Card>
       ) : null}

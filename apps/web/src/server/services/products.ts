@@ -350,6 +350,7 @@ export type SearchFilters = {
   application?: string;
   minRating?: number;
   supplier?: string;
+  featured?: boolean;
   city?: string;
   verifiedOnly?: boolean;
   inStockOnly?: boolean;
@@ -395,6 +396,7 @@ export async function searchProducts(f: SearchFilters) {
       ...(f.verifiedOnly ? { verificationStatus: "VERIFIED" } : {}),
       ...(f.supplier ? { slug: f.supplier } : {}),
     },
+    ...(f.featured ? { isFeatured: true } : {}),
     ...(f.category ? { category: { slug: f.category } } : {}),
     ...(f.subcategory
       ? {

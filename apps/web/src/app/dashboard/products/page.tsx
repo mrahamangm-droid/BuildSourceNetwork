@@ -5,6 +5,7 @@ import { listOwnProducts } from "@/server/services/products";
 import { archiveProductAction } from "@/server/actions";
 import { Alert, Badge, Button, EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { StockBadge, Pagination } from "@/components/market/parts";
+import { FeaturedToggle } from "@/components/dashboard/featured-toggle";
 import { formatMoney } from "@/lib/utils";
 import { redirect } from "next/navigation";
 
@@ -78,6 +79,11 @@ export default async function ProductsPage({
                   </td>
                   <td className="px-4 py-3">
                     {p.isActive ? <Badge tone="green">Listed</Badge> : <Badge>Hidden</Badge>}
+                    {p.isActive ? (
+                      <div className="mt-1">
+                        <FeaturedToggle productId={p.id} featured={p.isFeatured} />
+                      </div>
+                    ) : null}
                   </td>
                   <td className="px-4 py-3 text-right whitespace-nowrap">
                     <LinkButton href={`/dashboard/products/${p.id}`} variant="outline" size="sm">

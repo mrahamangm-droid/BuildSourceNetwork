@@ -1,16 +1,19 @@
 import { SupplyChain } from "@/components/market/supply-chain";
 import { notFound } from "next/navigation";
 import { db } from "@bmn/database";
+import Link from "next/link";
 import { Badge, Card, LinkButton } from "@/components/ui";
 import {
   Breadcrumbs,
   DemoBadge,
   JsonLd,
+  Pagination,
   ProductCard,
   VerifiedBadge,
 } from "@/components/market/parts";
 import { getPublicOrg } from "@/server/services/orgs";
-import { searchProducts } from "@/server/services/products";
+import { searchProducts, type SearchFilters } from "@/server/services/products";
+import { storefrontCategories } from "@/server/services/storefront";
 import { appUrl } from "@/lib/utils";
 import { DEMO_LABEL, SUPPLIER_KIND_LABEL, type SupplierKind } from "@bmn/config";
 import { leadTimeLabel } from "@/lib/manufacturer";
@@ -23,23 +26,46 @@ export async function OrgProfile({
   slug,
   type,
   basePath,
+  query = {},
 }: {
   slug: string;
   type: "SUPPLIER" | "STORE";
   basePath: "suppliers" | "stores";
+  query?: { q?: string; category?: string; sort?: string; page?: string };
 }) {
   const data = await getPublicOrg(slug, type);
   if (!data) notFound();
   const { org, metrics } = data;
-  const [products, reviews] = await Promise.all([
-    searchProducts({ supplier: slug, pageSize: 12 }),
+  const sort = (["price_asc", "price_desc", "newest", "rating"] as const).find(
+    (x) => x === query.sort,
+  );
+  const q = query.q?.trim().slice(0, 80) || undefined;
+  const category = query.category || undefined;
+  const page = Math.max(1, Number(query.page) || 1);
+  const filtered = !!(q || category || sort);
+  const filters: SearchFilters = { supplier: slug, q, category, sort, page, pageSize: 12 };
+  const [products, reviews, categories, featured] = await Promise.all([
+    searchProducts(filters),
     db.review.findMany({
       where: { subjectOrgId: org.id, status: "PUBLISHED" },
       orderBy: { createdAt: "desc" },
       take: 5,
       include: { authorOrg: { select: { name: true } } },
     }),
+    storefrontCategories(org.id),
+    !filtered && page === 1
+      ? searchProducts({ supplier: slug, featured: true, pageSize: 8 })
+      : Promise.resolve(null),
   ]);
+  const keep = { q, category, sort };
+  const catHref = (c?: string) => {
+    const sp = new URLSearchParams();
+    if (q) sp.set("q", q);
+    if (sort) sp.set("sort", sort);
+    if (c) sp.set("category", c);
+    const qs = sp.toString();
+    return `/${basePath}/${org.slug}${qs ? `?${qs}` : ""}`;
+  };
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <JsonLd
@@ -99,6 +125,7 @@ export async function OrgProfile({
               ) : null}
               {org.city ? <Badge>{org.city}</Badge> : null}
             </div>
+            {org.tagline ? <p className="mt-2 text-sm text-slate-700">{org.tagline}</p> : null}
             {org.isDemo ? <p className="mt-2 text-xs text-amber-800">{DEMO_LABEL}.</p> : null}
           </div>
           {type === "SUPPLIER" ? (
@@ -117,8 +144,70 @@ export async function OrgProfile({
               <p className="mt-2 whitespace-pre-line text-sm text-slate-700">{org.description}</p>
             </Card>
           ) : null}
-          <section>
-            <h2 className="mb-3 text-lg font-semibold">Products ({products.total})</h2>
+          {featured && featured.items.length ? (
+            <section aria-labelledby="featured-h">
+              <h2 id="featured-h" className="mb-3 text-lg font-semibold">
+                Featured products
+              </h2>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {featured.items.map((p) => (
+                  <ProductCard key={p.id} p={p} />
+                ))}
+              </div>
+            </section>
+          ) : null}
+          <section id="catalogue" aria-labelledby="catalogue-h">
+            <h2 id="catalogue-h" className="mb-3 text-lg font-semibold">
+              {filtered ? "Results" : "Full catalogue"} ({products.total})
+            </h2>
+            <form
+              method="get"
+              action={`/${basePath}/${org.slug}#catalogue`}
+              className="mb-3 flex flex-wrap gap-2"
+            >
+              {category ? <input type="hidden" name="category" value={category} /> : null}
+              <input
+                name="q"
+                defaultValue={q ?? ""}
+                placeholder={`Search ${org.name}`}
+                aria-label={`Search ${org.name}`}
+                className="h-10 min-w-0 flex-1 rounded-lg border border-line bg-white px-3 text-sm"
+              />
+              <select
+                name="sort"
+                defaultValue={sort ?? ""}
+                aria-label="Sort"
+                className="h-10 rounded-lg border border-line bg-white px-2 text-sm"
+              >
+                <option value="">Recommended</option>
+                <option value="price_asc">Price: low to high</option>
+                <option value="price_desc">Price: high to low</option>
+                <option value="newest">Newest</option>
+                <option value="rating">Top rated</option>
+              </select>
+              <button className="h-10 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700">
+                Search
+              </button>
+            </form>
+            {categories.length > 1 ? (
+              <div className="mb-4 flex flex-wrap gap-2 text-sm">
+                <Link
+                  href={catHref()}
+                  className={`rounded-full border px-3 py-1 ${!category ? "border-brand-600 bg-brand-50 text-brand-700" : "border-line hover:bg-surface"}`}
+                >
+                  All
+                </Link>
+                {categories.map((c) => (
+                  <Link
+                    key={c.slug}
+                    href={catHref(c.slug)}
+                    className={`rounded-full border px-3 py-1 ${category === c.slug ? "border-brand-600 bg-brand-50 text-brand-700" : "border-line hover:bg-surface"}`}
+                  >
+                    {c.name} <span className="text-muted">{c.count}</span>
+                  </Link>
+                ))}
+              </div>
+            ) : null}
             {products.items.length ? (
               <div className="grid gap-4 sm:grid-cols-2">
                 {products.items.map((p) => (
@@ -126,8 +215,16 @@ export async function OrgProfile({
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted">No products listed yet.</p>
+              <p className="text-sm text-muted">
+                {filtered ? "No products match your search." : "No products listed yet."}
+              </p>
             )}
+            <Pagination
+              page={products.page}
+              pages={products.pages}
+              params={keep}
+              basePath={`/${basePath}/${org.slug}`}
+            />
           </section>
           {reviews.length ? (
             <section>
@@ -236,6 +333,12 @@ export async function OrgProfile({
                   </div>
                 ) : null}
               </dl>
+            </Card>
+          ) : null}
+          {org.policies ? (
+            <Card>
+              <h2 className="font-semibold">Terms &amp; policies</h2>
+              <p className="mt-2 whitespace-pre-line text-sm text-slate-700">{org.policies}</p>
             </Card>
           ) : null}
           <Card>

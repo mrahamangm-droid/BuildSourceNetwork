@@ -156,6 +156,8 @@ model Organization {
   country            String             @default("AE")
   currency           String             @default("AED")
   businessHours      String?
+  tagline            String?
+  policies           String?
   deliveryAreas      String[]
   supplierKind       SupplierKind?
   leadTimeDays       Int?
@@ -357,6 +359,7 @@ model Product {
   city             String?
   deliveryAvailable Boolean     @default(true)
   isActive         Boolean      @default(true)
+  isFeatured       Boolean      @default(false)
   isDemo           Boolean      @default(false)
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
@@ -387,6 +390,7 @@ model Product {
   @@index([productTypeId, isActive])
   @@index([manufacturerId, isActive])
   @@index([orgId, isActive])
+  @@index([orgId, isFeatured])
   @@index([city])
   @@index([name])
 }

@@ -14,6 +14,8 @@ type Org = {
   addressLine: string | null;
   city: string | null;
   businessHours: string | null;
+  tagline?: string | null;
+  policies?: string | null;
   deliveryAreas: string[];
   logoUrl: string | null;
   coverUrl: string | null;
@@ -82,8 +84,22 @@ export function ProfileForm({
           <Field label="Address">
             <Input name="addressLine" defaultValue={org.addressLine ?? ""} />
           </Field>
+          <Field
+            label="Storefront tagline"
+            hint="One line shown under your name on your public storefront."
+            error={fe(state, "tagline")}
+          >
+            <Input name="tagline" defaultValue={org.tagline ?? ""} maxLength={140} />
+          </Field>
           <Field label="Description" error={fe(state, "description")}>
             <Textarea name="description" defaultValue={org.description ?? ""} rows={4} />
+          </Field>
+          <Field
+            label="Terms & policies"
+            hint="Delivery, returns, payment terms. Shown on your storefront."
+            error={fe(state, "policies")}
+          >
+            <Textarea name="policies" defaultValue={org.policies ?? ""} rows={4} maxLength={1500} />
           </Field>
           <Field label="Delivery areas" hint="Comma-separated cities, e.g. Sharjah, Dubai, Ajman">
             <Input name="deliveryAreas" defaultValue={org.deliveryAreas.join(", ")} />

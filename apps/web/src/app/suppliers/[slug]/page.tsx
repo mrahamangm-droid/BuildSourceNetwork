@@ -19,6 +19,19 @@ export async function generateMetadata({
   };
 }
 
-export default async function SupplierPage({ params }: { params: Promise<{ slug: string }> }) {
-  return <OrgProfile slug={(await params).slug} type="SUPPLIER" basePath="suppliers" />;
+export default async function SupplierPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ q?: string; category?: string; sort?: string; page?: string }>;
+}) {
+  return (
+    <OrgProfile
+      slug={(await params).slug}
+      type="SUPPLIER"
+      basePath="suppliers"
+      query={await searchParams}
+    />
+  );
 }

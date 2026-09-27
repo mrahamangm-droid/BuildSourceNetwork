@@ -134,6 +134,45 @@ describe("bulk media", () => {
     expect(await db.productDocument.count()).toBe(0);
   });
 
+  it("undoes a run: removes what it added, restores replaced photos, and stays in its own org", async () => {
+    const { s, mk } = await seed("Media U");
+    const other = await seed("Media U2");
+    const p = await mk("U-1", "You");
+    const q = await mk("U-2", "Why");
+    for (const u of ["old.jpg", "new.jpg", "extra.jpg"]) await doc(s.orgId, `/u/${u}`, "IMAGE");
+    await doc(s.orgId, "/u/u.pdf", "DOCUMENT");
+    // a photo that existed before the run
+    await media.attachMedia(s, {
+      items: [{ productId: p.id, kind: "image", url: "/u/old.jpg", position: 1 }],
+    });
+
+    const r = await media.attachMedia(s, {
+      items: [
+        { productId: p.id, kind: "image", url: "/u/new.jpg", position: 1 }, // replaces old
+        { productId: q.id, kind: "image", url: "/u/extra.jpg", position: 1 }, // adds
+        { productId: q.id, kind: "document", url: "/u/u.pdf", name: "Spec.pdf" },
+      ],
+    });
+    expect(r.every((x) => x.ok && x.undo)).toBe(true);
+    const steps = r.map((x) => x.undo!);
+
+    // another company cannot undo it
+    const foreignRes = await media.undoMedia(other.s, { steps });
+    expect(foreignRes).toEqual({ removed: 0, restored: 0, missing: 3 });
+    expect(await db.productImage.count({ where: { productId: { in: [p.id, q.id] } } })).toBe(2);
+
+    const res = await media.undoMedia(s, { steps });
+    expect(res).toEqual({ removed: 3, restored: 1, missing: 0 });
+    expect(
+      (await db.productImage.findMany({ where: { productId: p.id } })).map((i) => i.url),
+    ).toEqual(["/u/old.jpg"]);
+    expect(await db.productImage.count({ where: { productId: q.id } })).toBe(0);
+    expect(await db.productDocument.count({ where: { productId: q.id } })).toBe(0);
+    // running it again changes nothing
+    expect(await media.undoMedia(s, { steps })).toEqual({ removed: 0, restored: 0, missing: 3 });
+    await expect(media.undoMedia(s, { steps: [] })).rejects.toMatchObject({ code: "VALIDATION" });
+  });
+
   it("exports the catalogue (SKU products only) as an updatable workbook", async () => {
     const { s, mk } = await seed("Media C");
     await mk("C-1", "Cee");

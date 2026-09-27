@@ -88,7 +88,13 @@ const attachSchema = z.object({
   replace: z.boolean().default(true),
 });
 
-export type AttachResult = { index: number; ok: boolean; message: string };
+/** What a successful attach created, so it can be undone later (and any replaced photo restored). */
+export type UndoStep = {
+  kind: "image" | "document";
+  id: string;
+  restore?: { url: string; alt: string | null; sortOrder: number };
+};
+export type AttachResult = { index: number; ok: boolean; message: string; undo?: UndoStep };
 
 export async function attachMedia(ctx: Ctx, raw: unknown): Promise<AttachResult[]> {
   guard(ctx);
@@ -142,13 +148,34 @@ export async function attachMedia(ctx: Ctx, raw: unknown): Promise<AttachResult[
           fail(`A product can have ${MAX_IMAGES_PER_PRODUCT} photos`);
           continue;
         }
-        await db.$transaction([
-          ...(clash ? [db.productImage.delete({ where: { id: clash.id } })] : []),
-          db.productImage.create({
+        const clashRow = clash
+          ? await db.productImage.findUnique({ where: { id: clash.id }, select: { alt: true } })
+          : null;
+        const made = await db.$transaction(async (tx) => {
+          if (clash) await tx.productImage.delete({ where: { id: clash.id } });
+          return tx.productImage.create({
             data: { productId: it.productId, url: it.url, alt: pname, sortOrder: order },
-          }),
-        ]);
-        results.push({ index, ok: true, message: clash ? "Replaced photo" : "Added photo" });
+            select: { id: true },
+          });
+        });
+        results.push({
+          index,
+          ok: true,
+          message: clash ? "Replaced photo" : "Added photo",
+          undo: {
+            kind: "image",
+            id: made.id,
+            ...(clash
+              ? {
+                  restore: {
+                    url: clash.url,
+                    alt: clashRow?.alt ?? null,
+                    sortOrder: clash.sortOrder,
+                  },
+                }
+              : {}),
+          },
+        });
       } else {
         const existing = await db.productDocument.findMany({
           where: { productId: it.productId },
@@ -162,7 +189,7 @@ export async function attachMedia(ctx: Ctx, raw: unknown): Promise<AttachResult[
           fail(`A product can have ${MAX_DOCS_PER_PRODUCT} documents`);
           continue;
         }
-        await db.productDocument.create({
+        const doc = await db.productDocument.create({
           data: {
             productId: it.productId,
             kind: it.docKind,
@@ -170,8 +197,14 @@ export async function attachMedia(ctx: Ctx, raw: unknown): Promise<AttachResult[
             url: it.url,
             sizeBytes: file.sizeBytes,
           },
+          select: { id: true },
         });
-        results.push({ index, ok: true, message: "Added document" });
+        results.push({
+          index,
+          ok: true,
+          message: "Added document",
+          undo: { kind: "document", id: doc.id },
+        });
       }
     } catch {
       fail("Could not be saved");
@@ -199,4 +232,88 @@ export async function removeProductDocument(ctx: Ctx, id: string) {
   });
   if (!doc) throw new AppError("Document not found", "NOT_FOUND");
   await db.productDocument.delete({ where: { id } });
+}
+
+const undoSchema = z.object({
+  steps: z
+    .array(
+      z.object({
+        kind: z.enum(["image", "document"]),
+        id: z.string().min(1).max(60),
+        restore: z
+          .object({
+            url: z.string().min(1).max(600),
+            alt: z.string().max(300).nullable(),
+            sortOrder: z.number().int().min(0).max(MAX_IMAGES_PER_PRODUCT),
+          })
+          .optional(),
+      }),
+    )
+    .min(1)
+    .max(500),
+});
+
+/**
+ * Reverse a bulk photo/document run: remove what it added and put back any photo it replaced.
+ * Only rows on the caller's own products are touched, and running it twice is harmless.
+ */
+export async function undoMedia(ctx: Ctx, raw: unknown) {
+  guard(ctx);
+  const parsed = undoSchema.safeParse(raw);
+  if (!parsed.success) throw new AppError("Invalid undo request", "VALIDATION");
+  let removed = 0;
+  let restored = 0;
+  let missing = 0;
+  for (const st of parsed.data.steps) {
+    if (st.kind === "document") {
+      const r = await db.productDocument.deleteMany({
+        where: { id: st.id, product: { orgId: ctx.orgId } },
+      });
+      if (r.count) removed++;
+      else missing++;
+      continue;
+    }
+    const img = await db.productImage.findFirst({
+      where: { id: st.id, product: { orgId: ctx.orgId } },
+      select: { id: true, productId: true },
+    });
+    if (!img) {
+      missing++;
+      continue;
+    }
+    await db.productImage.delete({ where: { id: img.id } });
+    removed++;
+    if (st.restore) {
+      // The old photo must be one of this company's own uploads, and its slot must still be free.
+      const own = await db.document.findFirst({
+        where: { orgId: ctx.orgId, url: st.restore.url },
+        select: { id: true },
+      });
+      const taken = await db.productImage.findFirst({
+        where: { productId: img.productId, sortOrder: st.restore.sortOrder },
+        select: { id: true },
+      });
+      if (own && !taken) {
+        await db.productImage.create({
+          data: {
+            productId: img.productId,
+            url: st.restore.url,
+            alt: st.restore.alt,
+            sortOrder: st.restore.sortOrder,
+          },
+        });
+        restored++;
+      }
+    }
+  }
+  if (removed)
+    await audit({
+      orgId: ctx.orgId,
+      actorId: ctx.userId,
+      action: "product.media_undone",
+      entity: "Product",
+      entityId: parsed.data.steps[0]!.id,
+      meta: { removed, restored },
+    });
+  return { removed, restored, missing };
 }

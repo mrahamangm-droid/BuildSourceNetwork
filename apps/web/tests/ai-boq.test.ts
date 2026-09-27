@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { AI_MAX_LINES, aiMonthlyCap, buildUserPrompt, parseAiLines } from "../src/lib/ai-boq";
+import {
+  AI_MAX_LINES,
+  AI_SYSTEM_PROMPT,
+  AI_UNITS,
+  aiMonthlyCap,
+  buildUserPrompt,
+  normalizeAiUnit,
+  parseAiLines,
+} from "../src/lib/ai-boq";
+import { matchUnitCode } from "../src/lib/boq-rfq";
 
 const good = {
   section: "Structure",
@@ -78,5 +87,26 @@ describe("buildUserPrompt", () => {
     expect(p.split('"""')).toHaveLength(3);
     expect(p).toContain("Project type: VILLA");
     expect(p).not.toContain("City:");
+  });
+});
+
+describe("units", () => {
+  it("normalises the spellings a model uses", () => {
+    expect(
+      ["m²", "SQM", "m³", "Tonnes", "nos", "Litres", "kgs", "sq m", "Roll"].map(normalizeAiUnit),
+    ).toEqual(["m2", "m2", "m3", "ton", "pcs", "ltr", "kg", "m2", "roll"]);
+    expect(normalizeAiUnit("lump sum")).toBe("lump sum"); // unknown units are kept, never dropped
+  });
+  it("normalises units inside parsed lines", () => {
+    const [a] = parseAiLines(JSON.stringify([{ ...good, unit: "M³" }]));
+    expect(a!.unit).toBe("m3");
+  });
+  it("every unit the prompt allows becomes a marketplace unit for RFQs", () => {
+    for (const u of AI_UNITS) expect(matchUnitCode(u), u).not.toBe("");
+    for (const u of AI_UNITS) expect(AI_SYSTEM_PROMPT).toContain(u);
+  });
+  it("keeps the safety rules in the prompt", () => {
+    expect(AI_SYSTEM_PROMPT).toMatch(/untrusted data/);
+    expect(AI_SYSTEM_PROMPT).toContain(`at most ${AI_MAX_LINES} lines`);
   });
 });

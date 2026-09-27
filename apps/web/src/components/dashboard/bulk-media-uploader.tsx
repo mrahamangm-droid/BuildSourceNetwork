@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import type { UndoStep } from "@/server/services/product-media";
 import { Alert, Badge, Button, Card } from "@/components/ui";
 import { readZip } from "@/lib/bulk/zip";
 
@@ -15,7 +16,7 @@ type Match = {
 };
 type Entry = Match & {
   file: File;
-  state: "ready" | "uploading" | "done" | "failed" | "skipped";
+  state: "ready" | "uploading" | "done" | "failed" | "skipped" | "undone";
   note: string;
 };
 
@@ -66,6 +67,9 @@ export function BulkMediaUploader() {
   const [busy, setBusy] = useState(false);
   const [replace, setReplace] = useState(true);
   const [finished, setFinished] = useState(false);
+  const [undoSteps, setUndoSteps] = useState<{ entry: number; step: UndoStep }[]>([]);
+  const [undoing, setUndoing] = useState(false);
+  const [undoMsg, setUndoMsg] = useState("");
 
   const patch = (i: number, p: Partial<Entry>) =>
     setEntries((all) => all.map((e, k) => (k === i ? { ...e, ...p } : e)));
@@ -115,6 +119,8 @@ export function BulkMediaUploader() {
   }
 
   async function run() {
+    setUndoSteps([]);
+    setUndoMsg("");
     setBusy(true);
     setError("");
     const todo = entries.map((e, i) => ({ e, i })).filter((x) => x.e.state === "ready");
@@ -146,27 +152,30 @@ export function BulkMediaUploader() {
     for (let k = 0; k < uploaded.length; k += 50) {
       const batch = uploaded.slice(k, k + 50);
       try {
-        const res = await postJson<{ index: number; ok: boolean; message: string }[]>(
-          "/api/products/media",
-          {
-            action: "attach",
-            replace,
-            items: batch.map(({ i, url }) => {
-              const e = entries[i]!;
-              return {
-                productId: e.productId,
-                kind: e.kind,
-                url,
-                position: Math.min(10, e.position ?? 1),
-                name: e.file.name,
-                docKind: e.docKind ?? "DATASHEET",
-              };
-            }),
-          },
-        );
+        const res = await postJson<
+          { index: number; ok: boolean; message: string; undo?: UndoStep }[]
+        >("/api/products/media", {
+          action: "attach",
+          replace,
+          items: batch.map(({ i, url }) => {
+            const e = entries[i]!;
+            return {
+              productId: e.productId,
+              kind: e.kind,
+              url,
+              position: Math.min(10, e.position ?? 1),
+              name: e.file.name,
+              docKind: e.docKind ?? "DATASHEET",
+            };
+          }),
+        });
         res.forEach((r) =>
           patch(batch[r.index]!.i, { state: r.ok ? "done" : "failed", note: r.message }),
         );
+        const made = res.flatMap((r) =>
+          r.undo ? [{ entry: batch[r.index]!.i, step: r.undo }] : [],
+        );
+        if (made.length) setUndoSteps((cur) => [...cur, ...made]);
       } catch (err) {
         batch.forEach(({ i }) =>
           patch(i, {
@@ -178,6 +187,36 @@ export function BulkMediaUploader() {
     }
     setBusy(false);
     setFinished(true);
+  }
+
+  async function undoRun() {
+    if (!undoSteps.length) return;
+    if (!window.confirm(`Undo this upload? ${undoSteps.length} photos/documents will be removed.`))
+      return;
+    setUndoing(true);
+    setError("");
+    try {
+      let removed = 0;
+      let restored = 0;
+      for (let k = 0; k < undoSteps.length; k += 200) {
+        const chunk = undoSteps.slice(k, k + 200);
+        const r = await postJson<{ removed: number; restored: number }>("/api/products/media", {
+          action: "undo",
+          steps: chunk.map((c) => c.step),
+        });
+        removed += r.removed;
+        restored += r.restored;
+        chunk.forEach((c) => patch(c.entry, { state: "undone", note: "Undone" }));
+      }
+      setUndoSteps([]);
+      setUndoMsg(
+        `Undone: ${removed} removed${restored ? `, ${restored} earlier photo${restored === 1 ? "" : "s"} put back` : ""}.`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not undo. Try again.");
+    } finally {
+      setUndoing(false);
+    }
   }
 
   const ready = entries.filter((e) => e.state === "ready").length;
@@ -211,6 +250,7 @@ export function BulkMediaUploader() {
       </Card>
 
       {error ? <Alert tone="error">{error}</Alert> : null}
+      {undoMsg ? <Alert tone="success">{undoMsg}</Alert> : null}
 
       {entries.length ? (
         <Card className="overflow-hidden p-0">
@@ -220,9 +260,16 @@ export function BulkMediaUploader() {
               products, <b>{skipped}</b> skipped
               {finished ? `. ${done} linked, ${failed} failed.` : "."}
             </p>
-            <Button disabled={busy || !ready} onClick={() => void run()}>
-              {busy ? "Working…" : `Upload ${ready.toLocaleString("en")} files`}
-            </Button>
+            <div className="flex gap-2">
+              {undoSteps.length && !busy ? (
+                <Button variant="outline" disabled={undoing} onClick={() => void undoRun()}>
+                  {undoing ? "Undoing…" : `Undo this upload (${undoSteps.length})`}
+                </Button>
+              ) : null}
+              <Button disabled={busy || undoing || !ready} onClick={() => void run()}>
+                {busy ? "Working…" : `Upload ${ready.toLocaleString("en")} files`}
+              </Button>
+            </div>
           </div>
           <div className="max-h-[32rem] overflow-auto">
             <table className="w-full text-left text-sm">
@@ -272,7 +319,9 @@ export function BulkMediaUploader() {
                               ? "Linked"
                               : e.state === "failed"
                                 ? "Failed"
-                                : "Skipped"}
+                                : e.state === "undone"
+                                  ? "Undone"
+                                  : "Skipped"}
                       </Badge>
                       {e.note ? <span className="ml-2 text-xs text-muted">{e.note}</span> : null}
                     </td>

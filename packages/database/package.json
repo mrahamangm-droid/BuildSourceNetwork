@@ -17,7 +17,7 @@
     "@bmn/config": "*",
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
-    "pg": "^8.16.0"
+    "pg": "^8.23.1"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

@@ -17,6 +17,8 @@ import { storefrontCategories } from "@/server/services/storefront";
 import { appUrl } from "@/lib/utils";
 import { DEMO_LABEL, SUPPLIER_KIND_LABEL, type SupplierKind } from "@bmn/config";
 import { leadTimeLabel } from "@/lib/manufacturer";
+import { MapEmbed, mapLinkHref } from "@/components/market/map-embed";
+import { countryName } from "@/lib/utils";
 
 export async function loadOrg(slug: string, type: "SUPPLIER" | "STORE") {
   return getPublicOrg(slug, type);
@@ -390,6 +392,29 @@ export async function OrgProfile({
                 </div>
               ) : null}
             </dl>
+            {org.city ? (
+              <div className="mt-4">
+                <MapEmbed
+                  query={[org.addressLine, org.city, countryName(org.country)]
+                    .filter(Boolean)
+                    .join(", ")}
+                  title={`Map showing the location of ${org.name}`}
+                  zoom={org.addressLine ? 14 : 11}
+                />
+                <a
+                  className="mt-2 inline-block text-sm text-brand-700 hover:underline"
+                  href={mapLinkHref(
+                    [org.addressLine, org.city, countryName(org.country)]
+                      .filter(Boolean)
+                      .join(", "),
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  View on Google Maps
+                </a>
+              </div>
+            ) : null}
           </Card>
         </aside>
       </div>

@@ -16,7 +16,7 @@ export default async function ResetPage({
       {token ? (
         <ResetForm token={token} />
       ) : (
-        <Alert tone="error">This reset link is missing its token. Request a new one.</Alert>
+        <Alert tone="error">This reset link is incomplete. Please request a new one.</Alert>
       )}
     </Card>
   );

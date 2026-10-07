@@ -255,7 +255,7 @@ export function SearchBox({
         className={`w-full rounded-lg border border-line bg-white px-4 placeholder:text-slate-400 focus:border-brand-600 ${large ? "h-14 text-base" : "h-10 text-sm"}`}
       />
       <button
-        className={`rounded-lg bg-brand-600 px-5 font-semibold text-white hover:bg-brand-700 ${large ? "h-14" : "h-10"}`}
+        className={`rounded-lg bg-brand-700 px-5 font-semibold text-white hover:bg-[#9a3412] ${large ? "h-14" : "h-10"}`}
         type="submit"
       >
         Search

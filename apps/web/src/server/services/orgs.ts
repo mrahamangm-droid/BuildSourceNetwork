@@ -138,6 +138,7 @@ const PUBLIC_ORG_SELECT = {
   website: true,
   addressLine: true,
   city: true,
+  country: true,
   businessHours: true,
   tagline: true,
   policies: true,

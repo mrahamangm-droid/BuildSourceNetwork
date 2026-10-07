@@ -35,3 +35,13 @@ export function appUrl() {
     "http://localhost:3000"
   ).replace(/\/$/, "");
 }
+
+/** English country name from an ISO 3166-1 alpha-2 code (falls back to the code). */
+export function countryName(code: string | null | undefined) {
+  const c = (code || "AE").toUpperCase();
+  try {
+    return new Intl.DisplayNames(["en"], { type: "region" }).of(c) ?? c;
+  } catch {
+    return c;
+  }
+}

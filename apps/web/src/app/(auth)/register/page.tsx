@@ -7,7 +7,8 @@ import { ORG_TYPES, type OrgType } from "@bmn/config";
 
 export const metadata: Metadata = {
   title: "Create your free account",
-  description: "Join as a supplier, store, contractor or buyer.",
+  description:
+    "Create a free account to join as a supplier, store, contractor or buyer, then list materials, request quotes and manage orders.",
 };
 
 export default async function RegisterPage({

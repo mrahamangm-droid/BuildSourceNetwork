@@ -41,6 +41,7 @@ async function register(page, { type, company, city, name }) {
   await page.fill('input[name="name"]', name);
   await page.fill('input[name="email"]', email);
   await page.fill('input[name="password"]', PASSWORD);
+  await page.check('input[name="acceptTerms"]');
   await page.click('button:has-text("Create free account")');
   await page.waitForURL(/\/dashboard/);
   return email;
@@ -58,6 +59,7 @@ async function login(page, email) {
   await page.goto("/login");
   await page.fill('input[name="email"]', email);
   await page.fill('input[name="password"]', PASSWORD);
+  await page.check('input[name="acceptTerms"]');
   await page.click('button:has-text("Sign in")');
   await page.waitForURL(/\/dashboard/);
 }

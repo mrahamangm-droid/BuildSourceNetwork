@@ -105,6 +105,27 @@ export function RegisterForm({ defaultType }: { defaultType?: OrgType }) {
           autoComplete="new-password"
         />
       </Field>
+      <div>
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" name="acceptTerms" required className="mt-1" />
+          <span>
+            I agree to the{" "}
+            <Link href="/terms" target="_blank" className="text-brand-700 hover:underline">
+              Terms of Use
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy" target="_blank" className="text-brand-700 hover:underline">
+              Privacy Policy
+            </Link>
+            .
+          </span>
+        </label>
+        {fe(state, "acceptTerms") ? (
+          <p role="alert" className="mt-1 text-xs text-red-600">
+            {fe(state, "acceptTerms")}
+          </p>
+        ) : null}
+      </div>
       <FormMessage state={state} />
       <SubmitButton className="w-full" pending="Creating account…">
         Create free account

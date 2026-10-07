@@ -73,7 +73,14 @@ export function SiteFooter() {
         </div>
       </div>
       <p className="border-t border-line py-4 text-center text-xs text-muted">
-        © {new Date().getFullYear()} {COMPANY.legalName} · {BRAND.name}
+        © {new Date().getFullYear()} {COMPANY.legalName} · {BRAND.name} ·{" "}
+        <Link href="/privacy" className="hover:underline">
+          Privacy
+        </Link>{" "}
+        ·{" "}
+        <Link href="/terms" className="hover:underline">
+          Terms
+        </Link>
       </p>
     </footer>
   );

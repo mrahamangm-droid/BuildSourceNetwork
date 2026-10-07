@@ -70,6 +70,12 @@ const str = (fd: FormData, k: string) => {
 // ───────── auth ─────────
 
 export async function registerAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  if (str(fd, "acceptTerms") !== "on")
+    return fail(
+      new AppError("Please fix the highlighted fields.", "VALIDATION", {
+        acceptTerms: "Accept the Terms of Use and Privacy Policy to continue",
+      }),
+    );
   try {
     await accounts.registerAccount(
       {

@@ -41,7 +41,7 @@ export function Logo({
       <span
         className={cn("flex-col leading-none", hideWordmarkOnMobile ? "hidden sm:flex" : "flex")}
       >
-        <span className="text-[17px] font-extrabold tracking-tight">BuildSource</span>
+        <span className="text-[17px] font-extrabold tracking-tight">BuildSource</span>{" "}
         <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.32em] opacity-60">
           Network
         </span>

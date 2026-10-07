@@ -5,7 +5,8 @@ import { PLANS } from "@bmn/config";
 
 export const metadata: Metadata = {
   title: "Pricing",
-  description: "Simple plans for suppliers, stores and contractors. Start free.",
+  description:
+    "Simple monthly plans for suppliers, stores and contractors. Start free and upgrade when you need more listings, quotes and team tools.",
   alternates: { canonical: "/pricing" },
 };
 

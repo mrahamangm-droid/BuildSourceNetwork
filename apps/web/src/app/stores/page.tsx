@@ -4,7 +4,8 @@ import { OrgDirectory } from "@/components/market/org-directory";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Building material stores",
-  description: "Find building-material shops and traders near you.",
+  description:
+    "Find building-material shops and traders near you, compare their prices and get quotes from several stores at once.",
   alternates: { canonical: "/stores" },
 };
 

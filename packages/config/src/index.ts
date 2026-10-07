@@ -167,7 +167,7 @@ export const PLANS = [
     priceMonthlyCents: null,
     productLimit: null,
     rfqLimit: null,
-    features: ["Custom pricing", "API access", "Dedicated support"],
+    features: ["Custom pricing", "System integrations", "Dedicated support"],
   },
 ] as const;
 

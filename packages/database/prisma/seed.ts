@@ -14,6 +14,14 @@ const db = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
 });
 
+const IS_PRODUCTION =
+  process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production";
+if (IS_PRODUCTION && !process.env.SEED_DEMO_PASSWORD) {
+  // The demo set includes a platform-admin login; never create it with the publicly documented default password.
+  throw new Error(
+    "Refusing to seed demo accounts in production without SEED_DEMO_PASSWORD set to a strong, private value.",
+  );
+}
 const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? "Demo@12345";
 const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? "admin@demo.bmn.example";
 
@@ -160,6 +168,179 @@ async function makeOrg(
   return { org, owner };
 }
 
+// ---------------------------------------------------------------------------
+// Extra demo content for the public demo experience: 20 shops + 50 clients.
+// Everything here is fictional. Shops are flagged isDemo (and carry the "(Demo)"
+// name suffix); clients are rows owned by demo organizations, so they are removed
+// together with them by wipeDemo() and are never visible to real organizations.
+// ---------------------------------------------------------------------------
+const DEMO_SHOPS: {
+  name: string;
+  city: string;
+  focus: "hardware" | "paint" | "plumbing" | "electrical" | "tiles" | "safety";
+}[] = [
+  { name: "Marina Hardware & Tools (Demo)", city: "Dubai", focus: "hardware" },
+  { name: "Creek Side Paint Centre (Demo)", city: "Dubai", focus: "paint" },
+  { name: "Deira Plumbing Mart (Demo)", city: "Dubai", focus: "plumbing" },
+  { name: "Jebel Electrical Trading (Demo)", city: "Dubai", focus: "electrical" },
+  { name: "Al Qusais Tile Gallery (Demo)", city: "Dubai", focus: "tiles" },
+  { name: "Sharjah Safety Supplies (Demo)", city: "Sharjah", focus: "safety" },
+  { name: "Industrial Area Hardware (Demo)", city: "Sharjah", focus: "hardware" },
+  { name: "Khalid Lagoon Paints (Demo)", city: "Sharjah", focus: "paint" },
+  { name: "Ajman Plumbing & Fittings (Demo)", city: "Ajman", focus: "plumbing" },
+  { name: "Corniche Electrical Store (Demo)", city: "Ajman", focus: "electrical" },
+  { name: "Saadiyat Tile & Stone House (Demo)", city: "Abu Dhabi", focus: "tiles" },
+  { name: "Mussafah Tools Depot (Demo)", city: "Abu Dhabi", focus: "hardware" },
+  { name: "Capital Paint Studio (Demo)", city: "Abu Dhabi", focus: "paint" },
+  { name: "Khalifa City Safety Store (Demo)", city: "Abu Dhabi", focus: "safety" },
+  { name: "Al Ain Builders Hardware (Demo)", city: "Al Ain", focus: "hardware" },
+  { name: "Oasis Plumbing Supplies (Demo)", city: "Al Ain", focus: "plumbing" },
+  { name: "RAK Coastal Hardware (Demo)", city: "Ras Al Khaimah", focus: "hardware" },
+  { name: "Jazirah Electrical Mart (Demo)", city: "Ras Al Khaimah", focus: "electrical" },
+  { name: "Fujairah Tile & Sanitary (Demo)", city: "Fujairah", focus: "tiles" },
+  { name: "Umm Al Quwain Paint & Tools (Demo)", city: "Umm Al Quwain", focus: "paint" },
+];
+
+const SHOP_CATALOG: Record<(typeof DEMO_SHOPS)[number]["focus"], P[]> = {
+  hardware: [
+    ["Claw Hammer 16oz", "Tools", "PIECE", 32, 1, "DemoTools", null],
+    ["Binding Wire 1.6mm", "Hardware", "ROLL", 97, 1, null, "25 kg roll"],
+    ["Measuring Tape 8m", "Tools", "PIECE", 24, 1, "DemoTools", null],
+    ["Concrete Nails 3 inch", "Hardware", "KG", 11, 5, null, "1 kg pack"],
+  ],
+  paint: [
+    ["Interior Emulsion Paint White 18L", "Paint", "LITER", 10.1, 18, "DemoPaint", "18 L pail"],
+    ["Exterior Emulsion Paint White 18L", "Paint", "LITER", 12.9, 18, "DemoPaint", "18 L pail"],
+    ["Wood Primer 4L", "Paint", "LITER", 22, 4, "DemoPaint", "4 L can"],
+    ["Paint Roller Set", "Tools", "SET", 29, 1, "DemoTools", null],
+  ],
+  plumbing: [
+    ["PPR Pipe 25mm PN20", "Plumbing", "METER", 6.8, 20, null, "4 m length"],
+    ["Basin Mixer Tap Chrome", "Sanitaryware", "PIECE", 149, 1, "DemoBath", null],
+    ["Wall-hung WC Set", "Sanitaryware", "SET", 640, 1, "DemoBath", null],
+    ["PVC Pipe 4 inch", "Plumbing", "METER", 14, 10, null, "6 m length"],
+  ],
+  electrical: [
+    ["Copper Cable 3x2.5mm", "Electrical", "METER", 8.1, 50, null, "100 m drum"],
+    ["MCB 32A Single Pole", "Electrical", "PIECE", 22, 1, "DemoElec", null],
+    ["LED Downlight 12W", "Electrical", "PIECE", 18, 5, "DemoElec", null],
+    ["Distribution Board 12 Way", "Electrical", "PIECE", 185, 1, "DemoElec", null],
+  ],
+  tiles: [
+    ["Porcelain Floor Tile 60x60 Matt Grey", "Tiles", "SQM", 39, 10, "DemoTile", "60x60 cm"],
+    ["Ceramic Wall Tile 30x60 White", "Tiles", "SQM", 27, 10, "DemoTile", "30x60 cm"],
+    ["Tile Adhesive C2 25kg", "Tiles", "BAG", 34, 5, "DemoSeal", "25 kg"],
+    ["Basin Mixer Tap Chrome", "Sanitaryware", "PIECE", 152, 1, "DemoBath", null],
+  ],
+  safety: [
+    ["Safety Helmet Yellow", "Safety materials", "PIECE", 15, 5, "DemoSafe", null],
+    ["Safety Boots Steel Toe", "Safety materials", "PIECE", 79, 1, "DemoSafe", null],
+    ["High-Visibility Vest", "Safety materials", "PIECE", 9, 10, "DemoSafe", null],
+    ["Protective Gloves Pair", "Safety materials", "PIECE", 6.5, 10, "DemoSafe", null],
+  ],
+};
+
+// 50 fictional client names: 10 prefixes x 5 trade types.
+const CLIENT_PREFIXES = [
+  "Al Rawda",
+  "Bay View",
+  "Crescent",
+  "Dune Ridge",
+  "Emerald Court",
+  "Falaj",
+  "Golden Sands",
+  "Horizon Point",
+  "Ivory Gate",
+  "Jumeira Heights",
+];
+const CLIENT_TYPES = [
+  "Villa Contracting",
+  "Interiors & Fit-out",
+  "Developers",
+  "MEP Services",
+  "Civil Works",
+];
+const CONTACT_FIRST = [
+  "Omar",
+  "Layla",
+  "Yusuf",
+  "Mariam",
+  "Khalid",
+  "Noor",
+  "Tariq",
+  "Hana",
+  "Sami",
+  "Rania",
+];
+const CONTACT_LAST = ["Haddad", "Saleh", "Nasser", "Farouk", "Mansoor"];
+
+async function seedDemoShops(units: { code: string }[], catByName: Map<string, string>) {
+  const shopOrgs: { id: string; name: string; city: string }[] = [];
+  for (const [i, shop] of DEMO_SHOPS.entries()) {
+    const { org } = await makeOrg("STORE", shop.name, shop.city, `store${i + 2}@demo.bmn.example`);
+    shopOrgs.push({ id: org.id, name: org.name, city: shop.city });
+    for (const [pi, [name, cat, unit, price, moq, brand, pack]] of SHOP_CATALOG[
+      shop.focus
+    ].entries()) {
+      if (!units.find((u) => u.code === unit)) throw new Error("unknown unit " + unit);
+      const brandRow = brand
+        ? await db.brand.upsert({
+            where: { slug: slugify(brand) },
+            update: {},
+            create: { slug: slugify(brand), name: brand },
+          })
+        : null;
+      const adj = Math.round(price * (1 + ((i % 5) - 2) * 0.015) * 100) / 100;
+      await db.product.create({
+        data: {
+          orgId: org.id,
+          categoryId: catByName.get(cat)!,
+          brandId: brandRow?.id,
+          unitCode: unit,
+          sku: `DS${String(i + 1).padStart(2, "0")}-${String(pi + 1).padStart(3, "0")}`,
+          name,
+          slug: slugify(name),
+          description: `${name} available at ${shop.name}. Demo listing — prices are illustrative only.`,
+          packageSize: pack,
+          minOrderQty: moq,
+          price: adj,
+          city: shop.city,
+          stockStatus: (i + pi) % 5 === 4 ? "ON_REQUEST" : "IN_STOCK",
+          deliveryAvailable: true,
+          isDemo: true,
+          prices: { create: { price: adj, tier: "RETAIL" } },
+        },
+      });
+    }
+  }
+  return shopOrgs;
+}
+
+async function seedDemoClients(owners: { id: string; city: string | null }[]) {
+  const cities = ["Dubai", "Sharjah", "Ajman", "Abu Dhabi", "Al Ain", "Ras Al Khaimah"];
+  let n = 0;
+  for (const prefix of CLIENT_PREFIXES) {
+    for (const type of CLIENT_TYPES) {
+      const idx = n++;
+      const owner = owners[idx % owners.length];
+      await db.customer.create({
+        data: {
+          orgId: owner.id,
+          name: `${prefix} ${type} (Demo)`,
+          contactName: `${CONTACT_FIRST[idx % CONTACT_FIRST.length]} ${CONTACT_LAST[Math.floor(idx / CONTACT_FIRST.length) % CONTACT_LAST.length]}`,
+          phone: `+971 00 000 ${String(1000 + idx)}`,
+          email: `client${idx + 1}@demo.bmn.example`,
+          city: cities[idx % cities.length],
+          creditLimit: [10000, 25000, 50000, 75000, 100000][idx % 5],
+          paymentTermsDays: [15, 30, 45][idx % 3],
+          notes: "Demo client record. Fictional data for demonstration only; not a real business.",
+        },
+      });
+    }
+  }
+  return n;
+}
+
 async function main() {
   await seedReference(db);
   await wipeDemo();
@@ -238,6 +419,12 @@ async function main() {
     "contractor1@demo.bmn.example",
   );
   await makeOrg("BUYER", "Harbor View Developments (Demo)", "Abu Dhabi", "buyer1@demo.bmn.example");
+
+  const demoShops = await seedDemoShops(units, catByName);
+  const clientCount = await seedDemoClients([
+    ...supplierOrgs.flatMap((o) => Array(5).fill({ id: o.id, city: null })),
+    ...demoShops.map((o) => ({ id: o.id, city: o.city })),
+  ]);
 
   // A demo RFQ with two quotes and one accepted order so dashboards have real data.
   const cement = catByName.get("Cement")!;
@@ -336,7 +523,10 @@ async function main() {
 
   console.log(`Seeded. Demo login password for all demo users: ${DEMO_PASSWORD}`);
   console.log(
-    "Demo accounts: supplier1..6@, store1@, contractor1@, buyer1@, admin@ (demo.bmn.example)",
+    "Demo accounts: supplier1..6@, store1..21@, contractor1@, buyer1@, admin@ (demo.bmn.example)",
+  );
+  console.log(
+    `Demo extras: ${demoShops.length} shops and ${clientCount} client records (all flagged demo).`,
   );
 }
 

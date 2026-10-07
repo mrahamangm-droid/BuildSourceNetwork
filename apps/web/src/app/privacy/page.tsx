@@ -41,7 +41,9 @@ export default function PrivacyPage() {
       <LegalSection title="How we use it">
         <ul className="list-disc space-y-1 pl-5">
           <li>To create and run your account and show your company profile to other users.</li>
-          <li>To route requests for quotes to suppliers and to deliver quotes, orders and updates.</li>
+          <li>
+            To route requests for quotes to suppliers and to deliver quotes, orders and updates.
+          </li>
           <li>To verify businesses and keep the marketplace trustworthy.</li>
           <li>To send service emails such as sign-up, password reset and order notifications.</li>
           <li>To prevent fraud and abuse, to maintain audit records and to improve the service.</li>

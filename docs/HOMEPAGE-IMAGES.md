@@ -27,4 +27,8 @@ To find a photographer credit (optional), search the CDN id on unsplash.com.
 
 ## Optimisation
 
-Each photo is cropped (16:10 for the main hero, 4:3 elsewhere), resized to 2-3 widths and encoded as WebP with the highest quality that stays under 48 KB per file (34 files, about 1.3 MB in total). The masters were captured at about 1316 px wide, so the largest variant is 960 px (hero) or 640 px (cards). To refresh them with higher-resolution originals, re-export from Unsplash and re-encode with the same size budget.
+Each photo is cropped (16:10 for the main hero, 4:3 elsewhere), resized to 3-4 widths and encoded as WebP with the highest quality that stays under 48 KB per file (43 files). Crops match the earlier set.
+
+The masters are the full-size Unsplash originals (`images.unsplash.com/<id>?w=2400`), not the earlier ~1316 px captures. Because of the 50 KB budget, extra resolution only helps where the photo compresses well: the 4:3 cards and small heroes now have an 800 px variant (WebP quality 66-85), while the main hero stays at 960 px (quality 40) and the warehouse and site-walkthrough cards stay at 640 px, since larger sizes cannot fit the budget at acceptable quality. Raising the budget (for example to 80-100 KB) is the way to get a sharper hero.
+
+To refresh again, re-download the originals by the ids above and re-encode with the same size budget.

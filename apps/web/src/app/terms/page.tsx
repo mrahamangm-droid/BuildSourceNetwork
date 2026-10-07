@@ -31,7 +31,9 @@ export default function TermsPage() {
       <LegalSection title="Accounts">
         <ul className="list-disc space-y-1 pl-5">
           <li>Give accurate information and keep it up to date.</li>
-          <li>Keep your password confidential. You are responsible for activity on your account.</li>
+          <li>
+            Keep your password confidential. You are responsible for activity on your account.
+          </li>
           <li>Tell us promptly if you think your account has been misused.</li>
           <li>You must be at least 18 and able to enter a binding contract.</li>
         </ul>
@@ -47,7 +49,10 @@ export default function TermsPage() {
             A verified badge means a business passed our document checks at the time. It is not a
             guarantee of quality, financial standing or performance. Do your own due diligence.
           </li>
-          <li>Reviews must be honest and based on a real transaction. We may remove reviews that are not.</li>
+          <li>
+            Reviews must be honest and based on a real transaction. We may remove reviews that are
+            not.
+          </li>
           <li>
             Some profiles are labelled as demo profiles. They are examples and not real businesses
             you can buy from.
@@ -58,11 +63,19 @@ export default function TermsPage() {
       <LegalSection title="Acceptable use">
         <p>You agree not to:</p>
         <ul className="list-disc space-y-1 pl-5">
-          <li>post false, misleading or unlawful content, or content that infringes others&apos; rights;</li>
-          <li>use the service to harass others, send spam or request quotes you do not intend to consider;</li>
+          <li>
+            post false, misleading or unlawful content, or content that infringes others&apos;
+            rights;
+          </li>
+          <li>
+            use the service to harass others, send spam or request quotes you do not intend to
+            consider;
+          </li>
           <li>scrape the site, bypass its security or access another company&apos;s data;</li>
           <li>interfere with the service or use it to distribute malware;</li>
-          <li>take deals that began on the platform off it in order to avoid obligations you owe us.</li>
+          <li>
+            take deals that began on the platform off it in order to avoid obligations you owe us.
+          </li>
         </ul>
         <p>We may suspend or remove accounts and content that breach these terms.</p>
       </LegalSection>
@@ -92,8 +105,7 @@ export default function TermsPage() {
           The site, software, design and brand belong to us or our licensors. These terms do not
           give you any right to them except to use the service as intended. Tools such as
           calculators and smart matching give estimates and suggestions only. Check quantities,
-          specifications and suitability yourself or with a qualified professional before
-          ordering.
+          specifications and suitability yourself or with a qualified professional before ordering.
         </p>
       </LegalSection>
 
@@ -107,10 +119,10 @@ export default function TermsPage() {
 
       <LegalSection title="Disclaimers and liability">
         <p>
-          The service is provided &quot;as is&quot;. To the extent the law allows, we are not
-          liable for disputes between users, for the quality, safety or delivery of materials, or
-          for indirect or consequential loss, lost profit or lost data. Our total liability to you
-          for any claim relating to the service is limited to the fees you paid us in the 12 months
+          The service is provided &quot;as is&quot;. To the extent the law allows, we are not liable
+          for disputes between users, for the quality, safety or delivery of materials, or for
+          indirect or consequential loss, lost profit or lost data. Our total liability to you for
+          any claim relating to the service is limited to the fees you paid us in the 12 months
           before the claim, or AED 1,000 if you paid nothing. Nothing in these terms excludes
           liability that cannot be excluded by law.
         </p>
@@ -136,8 +148,8 @@ export default function TermsPage() {
 
       <LegalSection title="Changes and contact">
         <p>
-          We may update these terms. The date at the top shows the latest version, and continued
-          use after a change means you accept it. Questions:{" "}
+          We may update these terms. The date at the top shows the latest version, and continued use
+          after a change means you accept it. Questions:{" "}
           <a className="text-brand-700 hover:underline" href={`mailto:${COMPANY.supportEmail}`}>
             {COMPANY.supportEmail}
           </a>

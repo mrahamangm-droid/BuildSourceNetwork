@@ -2,6 +2,8 @@
 
 Twelve photographs power the homepage (hero collage, "Shop by material" tiles and "Built for every side of the build" cards). They live in `apps/web/public/images/home/` and are described in `apps/web/src/lib/home-images.ts` (alt text and intrinsic sizes). The `HomePicture` component renders them with `<picture>`, `srcset`/`sizes`, intrinsic `width`/`height` and lazy loading (only the first hero image is eager with `fetchpriority="high"`).
 
+Image IDs and the size budget below are the source of truth for the homepage photos.
+
 ## Licence
 
 All photos come from the free Unsplash library. The Unsplash License (https://unsplash.com/license, checked 2026-10-07) allows free use, including commercial use, without permission or attribution. It does not allow selling the unmodified images or compiling them into a competing photo service. Unsplash+ (premium) images were deliberately not used, and images showing readable third-party company logos were skipped.
